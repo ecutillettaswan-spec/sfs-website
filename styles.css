@@ -544,6 +544,32 @@ img.photo {
   margin-top: 0.6em;
 }
 
+/* ---------- what's next ---------- */
+
+.next-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--rust);
+  border-radius: var(--radius);
+  padding: 2.2rem 2rem;
+  max-width: 780px;
+}
+
+.next-card h2 { font-size: clamp(1.5rem, 2.6vw, 2rem); }
+
+.next-body { color: var(--muted); max-width: 42em; }
+
+.next-body strong { color: var(--ink); }
+
+.next-updated {
+  font-size: 0.82rem;
+  color: var(--muted);
+  opacity: 0.85;
+  margin-top: 1.3rem;
+}
+
+.next-updated a { color: var(--rust); font-weight: 600; }
+
 /* ---------- help ---------- */
 
 .help-grid {
