@@ -2,6 +2,43 @@
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// Always start at the top on reload: drop any #anchor from the URL and
+// take over scroll restoration so the hero sequence plays from the top.
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+window.scrollTo(0, 0);
+
+// In-page nav: scroll smoothly without writing #anchors into the URL.
+// Hand-rolled easing instead of native smooth scroll, which can stall
+// when scroll-driven animations are active.
+function smoothScrollTo(targetY, duration = 750) {
+  const startY = window.scrollY;
+  const delta = targetY - startY;
+  if (reducedMotion || Math.abs(delta) < 2) {
+    window.scrollTo(0, targetY);
+    return;
+  }
+  const t0 = performance.now();
+  function step(now) {
+    const p = Math.min((now - t0) / duration, 1);
+    const eased = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+    window.scrollTo(0, startY + delta * eased);
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+document.addEventListener('click', (e) => {
+  const link = e.target.closest('a[href^="#"]');
+  if (!link) return;
+  const target = document.querySelector(link.getAttribute('href'));
+  if (!target) return;
+  e.preventDefault();
+  const navHeight = document.querySelector('.nav').offsetHeight;
+  const y = Math.max(0, target.getBoundingClientRect().top + window.scrollY - navHeight);
+  smoothScrollTo(y);
+});
+
 // Sticky nav: add border once scrolled
 const nav = document.querySelector('.nav');
 window.addEventListener('scroll', () => {
