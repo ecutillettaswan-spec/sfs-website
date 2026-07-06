@@ -805,12 +805,16 @@ img.photo {
 
 .search-bar svg { width: 19px; height: 19px; flex-shrink: 0; color: var(--rust); }
 
+/* NOTE: no overflow:hidden here — it would make .paa a scroll container,
+   which freezes the scroll-driven view() animations of the items inside */
 .paa {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  overflow: hidden;
 }
+
+.paa-item:first-child summary { border-radius: var(--radius) var(--radius) 0 0; }
+.paa-item:last-child summary { border-radius: 0 0 var(--radius) var(--radius); }
 
 .paa-item { border-bottom: 1px solid var(--line); }
 .paa-item:last-child { border-bottom: none; }
@@ -893,8 +897,10 @@ img.photo {
   max-width: 24em;
 }
 
-.footer-col h4 {
+.footer-col h3 {
+  font-family: var(--font-body);
   font-size: 0.78rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.16em;
   color: var(--rust-bright);
@@ -964,8 +970,10 @@ img.photo {
     animation-range: entry 0% cover 32%;
   }
 
+  /* stagger only the start of each item's scrub — the end stays fixed so
+     items near the bottom of the page can always finish animating in */
   .reveal-stagger > * {
-    animation-range: entry calc(var(--i, 0) * 5%) cover calc(32% + var(--i, 0) * 5%);
+    animation-range: entry calc(var(--i, 0) * 6%) cover 32%;
   }
 
   img.photo {
