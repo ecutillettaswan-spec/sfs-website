@@ -21,7 +21,7 @@
   --font-body: "Public Sans", system-ui, -apple-system, sans-serif;
   --font-script: "Caveat", cursive;
 
-  --radius: 14px;
+  --radius: 22px;
   --container: 1140px;
 }
 
@@ -623,7 +623,7 @@ img.photo {
 .card-mark {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: 16px;
   background: var(--ink);
   color: var(--rust-bright);
   display: flex;
@@ -654,7 +654,7 @@ img.photo {
 .stat {
   border-top: 3px solid var(--rust);
   background: var(--ink-soft);
-  border-radius: 0 0 var(--radius) var(--radius);
+  border-radius: var(--radius);
   padding: 1.5rem 1.3rem;
 }
 
@@ -918,6 +918,66 @@ img.photo {
   color: var(--muted-light);
 }
 
+/* ---------- squircle corners (Apple-style, where supported) ---------- */
+
+@supports (corner-shape: squircle) {
+  .card,
+  .help-card,
+  .paa,
+  .next-card,
+  .stat,
+  .card-mark,
+  .photo-slot,
+  img.photo,
+  .hero-figure img,
+  .search-bar,
+  .btn {
+    corner-shape: squircle;
+  }
+}
+
+/* ---------- scroll-scrubbed animations (where supported) ---------- */
+
+@supports (animation-timeline: view()) {
+  @keyframes scrubRise {
+    from { opacity: 0; transform: translateY(46px) scale(0.97); }
+    to { opacity: 1; transform: none; }
+  }
+
+  @keyframes parallaxDrift {
+    from { transform: translateY(26px) scale(1.03); }
+    to { transform: translateY(-26px) scale(1.03); }
+  }
+
+  @keyframes arcSpin {
+    from { transform: rotate(12deg); }
+    to { transform: rotate(190deg); }
+  }
+
+  .reveal,
+  .reveal-stagger > * {
+    transition: none;
+    animation: scrubRise linear both;
+    animation-timeline: view();
+    animation-range: entry 0% cover 32%;
+  }
+
+  .reveal-stagger > * {
+    animation-range: entry calc(var(--i, 0) * 5%) cover calc(32% + var(--i, 0) * 5%);
+  }
+
+  img.photo {
+    animation: parallaxDrift linear both;
+    animation-timeline: view();
+    animation-range: cover 0% cover 100%;
+  }
+
+  .hero-arcs {
+    animation: arcSpin linear both;
+    animation-timeline: scroll();
+  }
+}
+
 /* ---------- reveal animation ---------- */
 
 .reveal {
@@ -945,8 +1005,9 @@ summary:focus-visible {
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .reveal { opacity: 1; transform: none; transition: none; }
-  .reveal-stagger > * { opacity: 1; transform: none; transition: none; }
+  .reveal { opacity: 1; transform: none; transition: none; animation: none !important; }
+  .reveal-stagger > * { opacity: 1; transform: none; transition: none; animation: none !important; }
+  img.photo, .hero-arcs { animation: none !important; }
   .marquee-track { animation: none; }
   .hero-figure figcaption .script-accent { clip-path: none; }
   .hero-arcs path { stroke-dashoffset: 0; }
