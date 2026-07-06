@@ -207,6 +207,161 @@ p + p { margin-top: 1em; }
   transition: transform 0.25s ease, opacity 0.25s ease;
 }
 
+/* ---------- animations: keyframes ---------- */
+
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(22px); filter: blur(3px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+@keyframes wordIn {
+  from { opacity: 0; transform: translateY(0.55em) rotate(1.5deg); filter: blur(5px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+@keyframes popIn {
+  0% { opacity: 0; transform: scale(0.4) rotate(-10deg); }
+  62% { opacity: 1; transform: scale(1.18) rotate(3deg); }
+  82% { transform: scale(0.94) rotate(-1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+@keyframes drawArc {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes writeIn {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- animations: hero load sequence ---------- */
+
+.anim-rise {
+  animation: riseIn 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--d, 0s);
+}
+
+.hero-title .w {
+  display: inline-block;
+  animation: wordIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hero-title .w:nth-child(1) { animation-delay: 0.25s; }
+.hero-title .w:nth-child(2) { animation-delay: 0.34s; }
+.hero-title .w:nth-child(3) { animation-delay: 0.43s; }
+.hero-title .w:nth-child(4) { animation-delay: 0.52s; }
+.hero-title .w:nth-child(5) { animation-delay: 0.61s; }
+.hero-title .w:nth-child(6) { animation-delay: 0.70s; }
+.hero-title .w:nth-child(8) { animation-delay: 0.79s; }
+
+.hero-title .w-pop {
+  animation-name: popIn;
+  animation-duration: 0.7s;
+  animation-delay: 1.05s;
+  animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.hero-stats li {
+  animation: riseIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(1.5s + var(--i, 0) * 0.13s);
+}
+
+.hero-figure {
+  animation: riseIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 1.45s;
+}
+
+.hero-arcs path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: drawArc 0.9s ease-out forwards;
+}
+
+.hero-arcs path:nth-child(1) { animation-delay: 1.9s; }
+.hero-arcs path:nth-child(2) { animation-delay: 2.15s; }
+
+.hero-figure figcaption .script-accent {
+  display: inline-block;
+  clip-path: inset(0 100% 0 0);
+  animation: writeIn 1.1s ease-out 2.35s forwards;
+}
+
+/* ---------- animations: scroll progress ---------- */
+
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--rust-bright);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  z-index: 100;
+  pointer-events: none;
+}
+
+/* ---------- animations: staggered scroll reveals ---------- */
+
+.reveal-stagger > * {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.55s ease, transform 0.55s ease;
+  transition-delay: calc(var(--i, 0) * 90ms);
+}
+
+.reveal-stagger.visible > * {
+  opacity: 1;
+  transform: none;
+}
+
+/* ---------- animations: micro-interactions ---------- */
+
+.nav-logo { transition: transform 0.7s cubic-bezier(0.34, 1.2, 0.64, 1); }
+
+.nav-brand:hover .nav-logo { transform: rotate(360deg); }
+
+.btn span {
+  display: inline-block;
+  transition: transform 0.25s ease;
+}
+
+.btn:hover span { transform: translateX(4px); }
+
+.card,
+.help-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover,
+.help-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 16px 32px rgba(12, 11, 9, 0.09);
+}
+
+img.photo {
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
+}
+
+img.photo:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 18px 36px rgba(12, 11, 9, 0.16);
+}
+
+.stat { transition: transform 0.3s ease, border-color 0.3s ease; }
+
+.stat:hover { transform: translateY(-4px); }
+
+.marquee:hover .marquee-track { animation-play-state: paused; }
+
+details[open] .paa-body { animation: fadeSlide 0.32s ease; }
+
 /* ---------- summer notice ---------- */
 
 .notice {
@@ -788,8 +943,15 @@ summary:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .reveal { opacity: 1; transform: none; transition: none; }
+  .reveal-stagger > * { opacity: 1; transform: none; transition: none; }
   .marquee-track { animation: none; }
-  * { transition-duration: 0.01ms !important; }
+  .hero-figure figcaption .script-accent { clip-path: none; }
+  .hero-arcs path { stroke-dashoffset: 0; }
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+  }
 }
 
 /* ---------- responsive ---------- */

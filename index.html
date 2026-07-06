@@ -13,6 +13,8 @@
 </head>
 <body>
 
+  <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+
   <!-- ============ NAV ============ -->
   <header class="nav" id="top">
     <div class="nav-inner">
@@ -43,24 +45,24 @@
     <!-- ============ HERO ============ -->
     <section class="hero">
       <div class="hero-inner">
-        <div class="hero-copy reveal">
-          <p class="eyebrow eyebrow-light">Student-run mutual aid · Oak Park River Forest High School</p>
-          <h1>School is hard enough on a <span class="script-accent">full</span> stomach.</h1>
-          <p class="hero-sub">Students Feeding Students keeps free snack cabinets stocked across OPRF High School — no forms, no questions, no stigma. Created by students, run by students, backed by our community.</p>
-          <div class="hero-ctas">
+        <div class="hero-copy">
+          <p class="eyebrow eyebrow-light anim-rise" style="--d: 0.05s">Student-run mutual aid · Oak Park River Forest High School</p>
+          <h1 class="hero-title"><span class="w">School</span> <span class="w">is</span> <span class="w">hard</span> <span class="w">enough</span> <span class="w">on</span> <span class="w">a</span> <span class="w w-pop script-accent">full</span> <span class="w">stomach.</span></h1>
+          <p class="hero-sub anim-rise" style="--d: 1.2s">Students Feeding Students keeps free snack cabinets stocked across OPRF High School — no forms, no questions, no stigma. Created by students, run by students, backed by our community.</p>
+          <div class="hero-ctas anim-rise" style="--d: 1.35s">
             <a class="btn btn-fill btn-lg" href="https://www.zeffy.com/en-US/donation-form/support-students-feeding-students" target="_blank" rel="noopener">Donate now <span aria-hidden="true">→</span></a>
             <a class="btn btn-ghost btn-lg" href="#how">How it works</a>
           </div>
           <ul class="hero-stats">
-            <li><strong>12,000+</strong><span>snacks shared in the first 3 weeks</span></li>
-            <li><strong>1,300+</strong><span>students used the cabinets in week one</span></li>
-            <li><strong>100%</strong><span>free, for every student</span></li>
+            <li style="--i: 0"><strong>12,000+</strong><span>snacks shared in the first 3 weeks</span></li>
+            <li style="--i: 1"><strong>1,300+</strong><span>students used the cabinets in week one</span></li>
+            <li style="--i: 2"><strong>100%</strong><span>free, for every student</span></li>
           </ul>
         </div>
-        <figure class="hero-figure reveal">
+        <figure class="hero-figure">
           <svg class="hero-arcs" viewBox="0 0 200 200" aria-hidden="true">
-            <path d="M 30 52 A 88 88 0 0 1 170 52" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
-            <path d="M 26 152 A 92 92 0 0 0 174 152" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+            <path pathLength="1" d="M 30 52 A 88 88 0 0 1 170 52" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+            <path pathLength="1" d="M 26 152 A 92 92 0 0 0 174 152" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
           </svg>
           <img src="assets/team-solidarity.jpg" alt="The Students Feeding Students crew in their Solidarity. Not Charity. shirts outside Oak Park River Forest High School">
           <figcaption><span class="script-accent">Solidarity. Not charity.</span></figcaption>
@@ -101,7 +103,7 @@
       <div class="container">
         <p class="eyebrow reveal">How it works</p>
         <h2 class="reveal">Simple on purpose.</h2>
-        <div class="cards reveal">
+        <div class="cards reveal-stagger">
           <article class="card">
             <div class="card-mark" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.5"/><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
@@ -134,7 +136,7 @@
         <p class="eyebrow eyebrow-light reveal">The need</p>
         <h2 class="reveal">Hunger is here, too.</h2>
         <p class="section-lede reveal">Oak Park and River Forest look well-resourced — and the cost of living runs 23% above the national average. Hunger here hides in plain sight.</p>
-        <div class="stat-grid reveal">
+        <div class="stat-grid reveal-stagger">
           <div class="stat">
             <strong>1 in 5</strong>
             <p>OPRF students qualify for free or reduced lunch — a family of four earning over $60,000 doesn't qualify at all. The students just past that cutoff are the “missing middle,” and this program is built for them too.</p>
@@ -157,7 +159,7 @@
         <div class="impact-block reveal">
           <p class="eyebrow eyebrow-light">The impact — since launch on May 13, 2026</p>
           <h2>And the cabinets are working.</h2>
-          <div class="stat-grid">
+          <div class="stat-grid reveal-stagger">
             <div class="stat">
               <strong>12,000+</strong>
               <p>snacks shared through the cabinets in the first three weeks.</p>
@@ -201,7 +203,7 @@
       <div class="container">
         <p class="eyebrow reveal">How to help</p>
         <h2 class="reveal">Keep the cabinets <span class="script-accent">stocked.</span></h2>
-        <div class="help-grid reveal">
+        <div class="help-grid reveal-stagger">
           <article class="help-card help-card-primary">
             <h3>Donate</h3>
             <p class="help-big">$50 = <strong>100+ snacks</strong> on the shelves.</p>
@@ -234,7 +236,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
           <span>is student hunger really a problem in oak park?</span>
         </div>
-        <div class="paa reveal">
+        <div class="paa reveal-stagger">
           <details class="paa-item">
             <summary>Is hunger a safety issue?</summary>
             <div class="paa-body">
