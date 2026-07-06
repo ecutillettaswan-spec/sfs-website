@@ -227,8 +227,10 @@ p + p { margin-top: 1em; }
   100% { opacity: 1; transform: scale(1) rotate(0); }
 }
 
-@keyframes drawArc {
-  to { stroke-dashoffset: 0; }
+@keyframes badgeIn {
+  0% { opacity: 0; transform: scale(0.3) rotate(-32deg); }
+  65% { opacity: 1; transform: scale(1.12) rotate(13deg); }
+  100% { opacity: 1; transform: scale(1) rotate(8deg); }
 }
 
 @keyframes writeIn {
@@ -281,14 +283,14 @@ p + p { margin-top: 1em; }
   animation-delay: 1.45s;
 }
 
-.hero-arcs path {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: drawArc 0.9s ease-out forwards;
+.hero-badge {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  border: 2px solid rgba(239, 234, 226, 0.18);
+  animation: badgeIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 1.9s both;
 }
-
-.hero-arcs path:nth-child(1) { animation-delay: 1.9s; }
-.hero-arcs path:nth-child(2) { animation-delay: 2.15s; }
 
 .hero-figure figcaption .script-accent {
   display: inline-block;
@@ -451,7 +453,7 @@ details[open] .paa-body { animation: fadeSlide 0.32s ease; }
   margin: 0;
 }
 
-.hero-figure img {
+.hero-figure > img {
   width: 100%;
   border-radius: var(--radius);
 }
@@ -463,13 +465,12 @@ details[open] .paa-body { animation: fadeSlide 0.32s ease; }
 
 .hero-figure .script-accent { font-size: 1.9rem; }
 
-.hero-arcs {
+.hero-badge-wrap {
   position: absolute;
-  width: 130px;
-  top: -46px;
+  width: 132px;
+  height: 132px;
+  top: -48px;
   right: -26px;
-  color: var(--rust);
-  transform: rotate(12deg);
   z-index: 1;
 }
 
@@ -930,7 +931,7 @@ img.photo {
   .card-mark,
   .photo-slot,
   img.photo,
-  .hero-figure img,
+  .hero-figure > img,
   .search-bar,
   .btn {
     corner-shape: squircle;
@@ -950,9 +951,9 @@ img.photo {
     to { transform: translateY(-26px) scale(1.03); }
   }
 
-  @keyframes arcSpin {
-    from { transform: rotate(12deg); }
-    to { transform: rotate(190deg); }
+  @keyframes badgeWobble {
+    from { transform: rotate(4deg); }
+    to { transform: rotate(-12deg); }
   }
 
   .reveal,
@@ -973,8 +974,8 @@ img.photo {
     animation-range: cover 0% cover 100%;
   }
 
-  .hero-arcs {
-    animation: arcSpin linear both;
+  .hero-badge-wrap {
+    animation: badgeWobble linear both;
     animation-timeline: scroll();
   }
 }
@@ -1008,10 +1009,9 @@ summary:focus-visible {
   html { scroll-behavior: auto; }
   .reveal { opacity: 1; transform: none; transition: none; animation: none !important; }
   .reveal-stagger > * { opacity: 1; transform: none; transition: none; animation: none !important; }
-  img.photo, .hero-arcs { animation: none !important; }
+  img.photo, .hero-badge-wrap, .hero-badge { animation: none !important; opacity: 1; }
   .marquee-track { animation: none; }
   .hero-figure figcaption .script-accent { clip-path: none; }
-  .hero-arcs path { stroke-dashoffset: 0; }
   *, *::before, *::after {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
@@ -1023,7 +1023,7 @@ summary:focus-visible {
 
 @media (max-width: 960px) {
   .hero-inner { gap: 2.5rem; }
-  .hero-arcs { width: 90px; top: -30px; right: -12px; }
+  .hero-badge-wrap { width: 88px; height: 88px; top: -28px; right: -10px; }
   .grid-2 { grid-template-columns: 1fr; gap: 2.5rem; }
   .cards { grid-template-columns: 1fr; }
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
