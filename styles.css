@@ -459,8 +459,17 @@ details[open] .paa-body { animation: fadeSlide 0.32s ease; }
 }
 
 .hero-figure figcaption {
-  text-align: right;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
   margin-top: 0.7rem;
+}
+
+.photo-credit {
+  font-size: 0.78rem;
+  color: var(--muted-light);
+  letter-spacing: 0.03em;
 }
 
 .hero-figure .script-accent { font-size: 1.9rem; }
