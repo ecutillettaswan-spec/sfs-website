@@ -3,3 +3,7 @@
 
 /index.html
   Cache-Control: no-cache
+
+/tracker/
+  Cache-Control: no-cache
+  X-Robots-Tag: noindex, nofollow
