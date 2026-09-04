@@ -1,8 +1,21 @@
-# Internal documents — never publish these
-MEDIA/
-
-# macOS
+/node_modules
+/.next/
+/.vinext/
+/dist/
+/.wrangler/
+/outputs/
+/output/
+/tmp/
+/work/
+/coverage/
+/.claude/
+/.legacy/
+/MEDIA/
+/.dev.vars*
+/.env*
+!.env.example
+*.pem
+*.log
 .DS_Store
-
-# Local tooling
-.claude/
+next-env.d.ts
+*.tsbuildinfo

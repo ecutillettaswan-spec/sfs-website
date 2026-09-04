@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1788438218531,
+      "tag": "0000_worthless_venus",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788440633757,
+      "tag": "0001_curly_turbo",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788487029373,
+      "tag": "0002_smooth_martin_li",
+      "breakpoints": true
+    }
+  ]
+}

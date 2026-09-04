@@ -1,4 +1,8 @@
 User-agent: *
 Allow: /
+Allow: /impact
+Allow: /feedback/
+Disallow: /mission-control
+Disallow: /api/
 
 Sitemap: https://studentsfeedingstudents.org/sitemap.xml
