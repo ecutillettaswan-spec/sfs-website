@@ -236,7 +236,7 @@ export async function authenticateMissionUser(identity: { userId: string; email:
   const now = new Date().toISOString();
   const existing = await db.prepare('SELECT * FROM users WHERE lower(email)=?').bind(email).first<Record<string, unknown>>();
   if (existing) {
-    // The ChatGPT user id is the stable account key. Do not rewrite a primary key
+    // The authenticated identity id is the stable account key. Do not rewrite a primary key
     // during routine sign-in; D1 rejects that pattern in some Worker runtimes.
     await db.prepare('UPDATE users SET last_seen_at=?, name=? WHERE lower(email)=?')
       .bind(now, identity.displayName, email).run();

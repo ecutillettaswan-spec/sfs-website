@@ -21,6 +21,8 @@ const nextConfig: NextConfig = {
       { source: '/:path*', headers: securityHeaders },
       { source: '/mission-control', headers: privateDashboardHeaders },
       { source: '/mission-control/:path*', headers: privateDashboardHeaders },
+      { source: '/missioncontrol', headers: privateDashboardHeaders },
+      { source: '/missioncontrol/:path*', headers: privateDashboardHeaders },
       { source: '/api/:path*', headers: [{ key: 'Cache-Control', value: 'no-store' }] },
       { source: '/tracker', headers: [{ key: 'Cache-Control', value: 'no-cache' }, { key: 'X-Robots-Tag', value: 'noindex, nofollow' }] },
       { source: '/impact', headers: [{ key: 'Cache-Control', value: 'no-store' }] },

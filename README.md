@@ -7,8 +7,8 @@ The Students Feeding Students website and private SFS Mission Control for operat
 ## What is included
 
 - Public SFS website at `/`
-- Private, role-based Mission Control at `/mission-control`
-- Legacy `/tracker` redirect and idempotent Google Sheet history import
+- Private, role-based Mission Control at `/missioncontrol`
+- Existing password-protected `/tracker` preserved alongside an idempotent Google Sheet history import
 - Manual cabinet inventory and field checks
 - Route/task handoffs and volunteer assignments
 - Evidence-gated depletion forecasts and purchasing recommendations
@@ -43,7 +43,8 @@ npm run db:generate
 
 Copy `.env.example` for local values. Production values belong in Sites environment settings, never in source control.
 
-- `OWNER_EMAIL` is required and must match the exact ChatGPT sign-in email for the first owner.
+- `OWNER_EMAIL` is required and must match the exact approved sign-in email for the first owner.
+- Native Cloudflare Pages uses `AUTH_PROVIDER=cloudflare-access`, `CF_ACCESS_TEAM_DOMAIN`, and `CF_ACCESS_AUD` so Access identities are cryptographically verified before app-level roles are applied.
 - `TRACKER_CSV_URL` is the private, server-only CSV export or proxy used by the legacy Form bridge. Do not hard-code a Sheet ID in source.
 - `TRACKER_SYNC_BEARER_TOKEN` is optional for a protected CSV proxy. Restrict or replace the anonymously readable Sheet before broadening access beyond the owner review.
 - `OPENAI_API_KEY` is optional; a deterministic operations engine remains available without it.

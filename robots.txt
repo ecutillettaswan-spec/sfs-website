@@ -3,6 +3,7 @@ Allow: /
 Allow: /impact
 Allow: /feedback/
 Disallow: /mission-control
+Disallow: /missioncontrol
 Disallow: /api/
 
 Sitemap: https://studentsfeedingstudents.org/sitemap.xml

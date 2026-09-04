@@ -1,4 +1,3 @@
-import { requireChatGPTUser } from '@/app/chatgpt-auth';
 import { getMissionUser } from '@/lib/auth';
 import { getPublicImpact } from '@/lib/database';
 import { ArrowLeft, ClipboardCheck, HeartHandshake, PackageCheck, School } from 'lucide-react';
@@ -11,7 +10,6 @@ export default async function ImpactPage({ searchParams }: { searchParams: Promi
   const impact = await getPublicImpact();
   let canPreview = false;
   if (impact.mode === 'review' && preview === '1') {
-    if (process.env.NODE_ENV === 'production') await requireChatGPTUser('/impact?preview=1');
     canPreview = Boolean(await getMissionUser());
   }
   if (!impact.published && !canPreview) {

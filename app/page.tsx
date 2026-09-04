@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 const body = (marketingHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i)?.[1] ?? '')
   .replace(/<script src="script\.js\?v=\d+"><\/script>/, '')
   .replaceAll('assets/', '/')
-  .replace('</nav>', '<a href="/mission-control">Mission Control</a></nav>');
+  .replace('</nav>', '<a href="/missioncontrol">Mission Control</a></nav>');
 
 const styles = marketingCss
   .replace('--font-display: "Archivo Black", system-ui, sans-serif;', '--font-display: var(--font-display-face), system-ui, sans-serif;')

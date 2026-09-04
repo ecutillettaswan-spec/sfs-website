@@ -19,6 +19,10 @@
   Cache-Control: private, no-store
   X-Robots-Tag: noindex, nofollow
 
+/missioncontrol*
+  Cache-Control: private, no-store
+  X-Robots-Tag: noindex, nofollow
+
 /api/*
   Cache-Control: no-store
 

@@ -1,8 +1,8 @@
-import { getChatGPTUser } from '@/app/chatgpt-auth';
+import { getPlatformUser } from '@/app/platform-auth';
 import { authenticateMissionUser } from '@/lib/database';
 
 export async function getMissionUser() {
-  const identity = await getChatGPTUser();
+  const identity = await getPlatformUser();
   if (identity) return authenticateMissionUser(identity);
   if (process.env.NODE_ENV !== 'production') {
     return authenticateMissionUser({
