@@ -1,4 +1,5 @@
 import { getRawDb } from '@/db';
+import { buildForecastAnalytics } from '@/lib/forecast-analytics';
 
 export type MissionRole = 'owner' | 'admin' | 'coordinator' | 'volunteer' | 'board_viewer';
 export type FeatureMode = 'off' | 'review' | 'on';
@@ -537,7 +538,7 @@ export async function getMissionControlData(user: MissionUser) {
   await ensureDatabase();
   await autoImportTrackerIfNeeded(user.id);
   const db = getRawDb();
-  const [cabinetRows, productRows, inventoryRows, eventRows, checkRows, taskRows, donationRows, purchaseRows, feedbackRows, featureRows, reportRows, userRows, approvedRows, shiftRows, activityRows, settingsRows, totals] = await Promise.all([
+  const [cabinetRows, productRows, inventoryRows, eventRows, checkRows, analyticsCheckRows, taskRows, donationRows, purchaseRows, feedbackRows, featureRows, reportRows, userRows, approvedRows, shiftRows, activityRows, settingsRows, totals] = await Promise.all([
     db.prepare('SELECT * FROM cabinets WHERE active=1 ORDER BY sort_order').all<Record<string, unknown>>(),
     db.prepare('SELECT * FROM products WHERE active=1 ORDER BY popularity_score DESC, name').all<Record<string, unknown>>(),
     db.prepare(`SELECT i.*, p.name AS product_name, p.category, p.units_per_case, p.cost_per_case,
@@ -545,6 +546,8 @@ export async function getMissionControlData(user: MissionUser) {
       FROM inventory i JOIN products p ON p.id=i.product_id ORDER BY i.cabinet_id,p.popularity_score DESC`).all<Record<string, unknown>>(),
     db.prepare('SELECT * FROM inventory_events ORDER BY occurred_at DESC LIMIT 5000').all<Record<string, unknown>>(),
     db.prepare('SELECT * FROM cabinet_checks ORDER BY checked_at DESC LIMIT 1200').all<Record<string, unknown>>(),
+    db.prepare(`SELECT id,cabinet_id,checked_at,is_empty,source,snack_summary,validation_issues
+      FROM cabinet_checks ORDER BY checked_at ASC LIMIT 10000`).all<Record<string, unknown>>(),
     db.prepare("SELECT t.*, c.name AS cabinet_name FROM tasks t LEFT JOIN cabinets c ON c.id=t.cabinet_id ORDER BY CASE t.status WHEN 'open' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END, t.due_at, t.created_at DESC LIMIT 100").all<Record<string, unknown>>(),
     db.prepare('SELECT * FROM donations ORDER BY received_at DESC LIMIT 100').all<Record<string, unknown>>(),
     db.prepare('SELECT * FROM purchases ORDER BY purchased_at DESC LIMIT 100').all<Record<string, unknown>>(),
@@ -607,13 +610,38 @@ export async function getMissionControlData(user: MissionUser) {
       const itemCountMs = new Date(String(item.last_counted_at ?? '')).getTime();
       if (!Number.isFinite(itemCountMs) || now - itemCountMs > 24 * 3_600_000) return [];
       const history = inventoryEvents
-        .filter((event) => event.cabinet_id === id && event.product_id === item.product_id && event.event_type === 'count')
+        .filter((event) => event.cabinet_id === id && (
+          event.event_type === 'full_restock'
+          || (event.product_id === item.product_id && event.event_type === 'count')
+        ))
         .sort((a, b) => new Date(String(a.occurred_at)).getTime() - new Date(String(b.occurred_at)).getTime());
-      const intervals = history.flatMap((event, index) => {
-        if (index === 0 || Number(event.quantity_delta) >= 0) return [];
-        const hours = (new Date(String(event.occurred_at)).getTime() - new Date(String(history[index - 1].occurred_at)).getTime()) / 3_600_000;
-        return hours >= 4 ? [{ consumed: -Number(event.quantity_delta), hours, date: String(event.occurred_at).slice(0, 10) }] : [];
-      });
+      const intervals: Array<{ consumed: number; hours: number; date: string }> = [];
+      let previousCount: DbRow | null = null;
+      for (const event of history) {
+        if (event.event_type === 'full_restock') {
+          // A program-wide full restock proves the cabinet total, but not its
+          // product mix. The first later product count starts a new cycle.
+          previousCount = null;
+          continue;
+        }
+        const occurredAt = new Date(String(event.occurred_at));
+        const quantityAfter = Number(event.quantity_after);
+        if (!Number.isFinite(occurredAt.getTime()) || !Number.isFinite(quantityAfter)) {
+          previousCount = null;
+          continue;
+        }
+        if (previousCount) {
+          const previousAt = new Date(String(previousCount.occurred_at));
+          const previousQuantity = Number(previousCount.quantity_after);
+          const hours = (occurredAt.getTime() - previousAt.getTime()) / 3_600_000;
+          const consumed = previousQuantity - quantityAfter;
+          const sameChicagoDate = chicagoDateOnly(previousAt) === chicagoDateOnly(occurredAt);
+          if (Number.isFinite(previousQuantity) && consumed > 0 && hours >= 4 && hours <= 12 && sameChicagoDate) {
+            intervals.push({ consumed, hours, date: chicagoDateOnly(occurredAt) });
+          }
+        }
+        previousCount = event;
+      }
       const sampleDays = new Set(intervals.map((interval) => interval.date)).size;
       if (intervals.length < 3 || sampleDays < 3) return [];
       const totalConsumed = intervals.reduce((sum, interval) => sum + interval.consumed, 0);
@@ -717,6 +745,12 @@ export async function getMissionControlData(user: MissionUser) {
   });
 
   const settings = Object.fromEntries(settingsRows.results.map((row) => [String(row.key), String(row.value)]));
+  const analytics = buildForecastAnalytics({
+    checks: analyticsCheckRows.results,
+    cabinets,
+    inventoryEvents,
+    now,
+  });
   const baselineSnacks = Number(settings.baseline_snacks ?? 12000);
   const baselineStudents = Number(settings.baseline_students ?? 1300);
   const donations = donationRows.results;
@@ -727,14 +761,9 @@ export async function getMissionControlData(user: MissionUser) {
   const emptyNow = cabinetCards.filter((cabinet) => cabinet.status.severity === 'critical').length;
   const urgent = recommendations.filter((item) => item.priority === 'urgent').length;
   const latestCheckAt = checks[0]?.checked_at ? String(checks[0].checked_at) : null;
-  const categoryPresence = new Map<string, number>();
-  for (const check of checks.filter((item) => Number(item.is_empty) === 0)) {
-    const value = String(check.snack_summary ?? '').toLowerCase();
-    for (const category of ['breakfast', 'fruit', 'granola', 'baked', 'goldfish', 'jerky']) {
-      if (value.includes(category)) categoryPresence.set(category, (categoryPresence.get(category) ?? 0) + 1);
-    }
-  }
-  const maxPresence = Math.max(1, ...categoryPresence.values());
+  const weightedCategoryPresence = new Map(
+    analytics.presenceSignals.categories.map((signal) => [signal.category.toLowerCase(), signal.weightedMentionRatePct]),
+  );
   const knownUnitCosts = products.flatMap((product) => {
     const cost = Number(product.cost_per_case);
     const units = Number(product.units_per_case);
@@ -743,12 +772,16 @@ export async function getMissionControlData(user: MissionUser) {
   const minUnitCost = knownUnitCosts.length ? Math.min(...knownUnitCosts) : 0;
   const maxUnitCost = knownUnitCosts.length ? Math.max(...knownUnitCosts) : 0;
   const purchaseRecommendations = products.map((product) => {
-    const key = String(product.category).toLowerCase().includes('breakfast') ? 'breakfast'
-      : String(product.category).toLowerCase().includes('fruit') ? 'fruit'
-      : String(product.name).toLowerCase().includes('goldfish') ? 'goldfish'
-      : String(product.category).toLowerCase().includes('granola') ? 'granola' : 'baked';
-    const presence = categoryPresence.get(key) ?? 0;
-    const scarcitySignal = Math.round(100 - (presence / maxPresence) * 60);
+    const category = String(product.category).toLowerCase();
+    const name = String(product.name).toLowerCase();
+    const analyticsCategory = category.includes('breakfast') ? 'breakfast'
+      : category.includes('fruit') ? 'fruit'
+      : category.includes('granola') || category.includes('protein') ? 'bars'
+      : name.includes('goldfish') || name.includes('cracker') ? 'crackers'
+      : category.includes('savory') ? 'savory snacks'
+      : category.includes('nut') ? 'protein & nuts' : null;
+    const presenceRate = analyticsCategory ? weightedCategoryPresence.get(analyticsCategory) : undefined;
+    const scarcitySignal = presenceRate === undefined ? 50 : Math.round(100 - presenceRate);
     const caseCost = Number(product.cost_per_case ?? 0);
     const units = Number(product.units_per_case ?? 0);
     const costPerSnack = units && caseCost ? caseCost / units : null;
@@ -759,7 +792,9 @@ export async function getMissionControlData(user: MissionUser) {
       score, cost_per_case: caseCost, units_per_case: units,
       cost_per_snack: costPerSnack,
       signal: inventory.some((item) => item.product_id === product.id && item.quantity !== null)
-        ? 'Based on live unit counts' : 'Early signal from legacy check history',
+        ? 'Based on live unit counts' : presenceRate === undefined
+          ? 'No matching availability-history category yet'
+          : `Availability signal weighted ${analytics.methodology.yearWeights[0]?.weight ?? 3}× toward ${analytics.overview.currentSchoolYear}`,
       recommendation: !costPerSnack ? 'Confirm a current case price before ordering' : score >= 78 ? 'Prioritize next order' : score >= 66 ? 'Keep in rotation' : 'Order after higher-demand items',
     };
   }).sort((a, b) => b.score - a.score);
@@ -808,6 +843,7 @@ export async function getMissionControlData(user: MissionUser) {
     activity: isAdministrator ? activityRows.results : [],
     recommendations: user.role === 'board_viewer' ? [] : recommendations,
     purchaseRecommendations: user.role === 'board_viewer' || featureModes.purchasing_recommendations === 'off' ? [] : purchaseRecommendations,
+    analytics: user.role === 'board_viewer' ? null : analytics,
     settings: isAdministrator ? settings : {},
     metrics: user.role === 'board_viewer' ? {
       baselineSnacks, baselineStudents, donationCents, donationSnacks,

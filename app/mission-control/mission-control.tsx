@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import {
-  Activity, Bell, Bot, Boxes, Building2, CalendarCheck, ChevronRight, ClipboardCheck,
+  Activity, BarChart3, Bell, Bot, Boxes, Building2, CalendarCheck, ChevronRight, ClipboardCheck,
   Command, HandCoins, LayoutDashboard, Menu, PackageCheck, Route, Search, Settings2,
   ShieldCheck, Sparkles, X,
 } from 'lucide-react';
 import ActionDialog, { type DialogState } from './action-dialog';
 import MissionView from './views';
+import type { ForecastAnalyticsResult } from '@/lib/forecast-analytics';
 
 // D1 query payloads are normalized at the API boundary and intentionally remain flexible here.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -31,6 +32,7 @@ export type MissionData = {
   activity: Row[];
   recommendations: Row[];
   purchaseRecommendations: Row[];
+  analytics: ForecastAnalyticsResult | null;
   settings: Record<string, string>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metrics: Record<string, any>;
@@ -40,6 +42,7 @@ export type MissionData = {
 const nav = [
   { id: 'today', label: 'Today', Icon: LayoutDashboard },
   { id: 'cabinets', label: 'Cabinets', Icon: Building2 },
+  { id: 'analytics', label: 'Forecasts & analytics', Icon: BarChart3 },
   { id: 'routes', label: 'Routes & tasks', Icon: Route },
   { id: 'inventory', label: 'Inventory & purchasing', Icon: Boxes },
   { id: 'impact', label: 'Impact & reports', Icon: HandCoins },
@@ -225,14 +228,14 @@ export default function MissionControl({ initialData }: { initialData: MissionDa
         <nav aria-label="Mission Control">
           <p>Operate</p>
           {visibleNav.filter((item) => item.id !== 'admin').map(({ id, label, Icon }) => (
-            <button key={id} className={view === id ? 'active' : ''} onClick={() => { setView(id); setMobileNav(false); }}>
+            <button key={id} className={view === id ? 'active' : ''} aria-current={view === id ? 'page' : undefined} onClick={() => { setView(id); setMobileNav(false); }}>
               <Icon aria-hidden="true" /><span>{label}</span>
               {id === 'feedback' && data.metrics.feedbackNew > 0 && <b>{data.metrics.feedbackNew}</b>}
             </button>
           ))}
           <p>System</p>
           {visibleNav.filter((item) => item.id === 'admin').map(({ id, label, Icon }) => (
-            <button key={id} className={view === id ? 'active' : ''} onClick={() => { setView(id); setMobileNav(false); }}>
+            <button key={id} className={view === id ? 'active' : ''} aria-current={view === id ? 'page' : undefined} onClick={() => { setView(id); setMobileNav(false); }}>
               <Icon aria-hidden="true" /><span>{label}</span>
             </button>
           ))}

@@ -10,6 +10,7 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import { CabinetCard, type MissionData, type Row } from './mission-control';
 import type { DialogState } from './action-dialog';
+import AnalyticsView from './analytics-view';
 
 type Props = {
   view: string;
@@ -212,6 +213,7 @@ function AdminView({ data, mutate, openDialog, busy }: Pick<Props, 'data' | 'mut
 
 export default function MissionView(props: Props) {
   if (props.view === 'cabinets') return <CabinetsView data={props.data} openDialog={props.openDialog} />;
+  if (props.view === 'analytics' && props.data.analytics) return <AnalyticsView analytics={props.data.analytics} />;
   if (props.view === 'routes') return <RoutesView data={props.data} mutate={props.mutate} openDialog={props.openDialog} busy={props.busy} />;
   if (props.view === 'inventory') return <InventoryView data={props.data} openDialog={props.openDialog} />;
   if (props.view === 'impact') return <ImpactView data={props.data} openDialog={props.openDialog} mutate={props.mutate} busy={props.busy} />;
