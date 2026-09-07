@@ -368,25 +368,6 @@ img.photo:hover {
 
 details[open] .paa-body { animation: fadeSlide 0.32s ease; }
 
-/* ---------- summer notice ---------- */
-
-.notice {
-  background: var(--paper-deep);
-  border-bottom: 1px solid var(--line);
-  padding: 0.7rem 1.5rem;
-}
-
-.notice p {
-  max-width: var(--container);
-  margin: 0 auto;
-  font-size: 0.9rem;
-  color: var(--ink);
-}
-
-.notice strong { color: var(--rust); }
-
-.notice a { color: var(--rust); font-weight: 600; }
-
 /* ---------- hero ---------- */
 
 .hero {
@@ -713,31 +694,81 @@ img.photo {
   margin-top: 0.6em;
 }
 
-/* ---------- what's next ---------- */
+/* ---------- what's new ---------- */
 
-.next-card {
+.update-intro { max-width: 720px; }
+
+.update-lede {
+  color: var(--muted);
+  font-size: 1.08rem;
+}
+
+.update-layout {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 2rem;
+  align-items: start;
+  margin-top: 2.6rem;
+}
+
+.update-status {
+  display: grid;
+  gap: 1rem;
+}
+
+.update-card {
   background: #fff;
   border: 1px solid var(--line);
   border-left: 4px solid var(--rust);
   border-radius: var(--radius);
-  padding: 2.2rem 2rem;
-  max-width: 780px;
+  padding: 1.6rem 1.5rem;
 }
 
-.next-card h2 { font-size: clamp(1.5rem, 2.6vw, 2rem); }
+.update-card h3 { font-size: 1.22rem; }
 
-.next-body { color: var(--muted); max-width: 42em; }
-
-.next-body strong { color: var(--ink); }
-
-.next-updated {
-  font-size: 0.82rem;
+.update-card p:last-child {
   color: var(--muted);
-  opacity: 0.85;
-  margin-top: 1.3rem;
+  font-size: 0.94rem;
 }
 
-.next-updated a { color: var(--rust); font-weight: 600; }
+.update-kicker {
+  color: var(--rust);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  margin-bottom: 0.55rem;
+  text-transform: uppercase;
+}
+
+.storage-media {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.storage-figure,
+.team-figure { margin: 0; }
+
+.storage-visual {
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  background: var(--ink);
+  border-radius: var(--radius);
+  display: block;
+  object-fit: cover;
+}
+
+.storage-photo { object-position: center; }
+
+.storage-figure figcaption,
+.team-figure figcaption {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  margin-top: 0.65rem;
+}
+
+.team-photo { object-position: center 70%; }
 
 /* ---------- help ---------- */
 
@@ -941,11 +972,12 @@ img.photo {
   .card,
   .help-card,
   .paa,
-  .next-card,
+  .update-card,
   .stat,
   .card-mark,
   .photo-slot,
   img.photo,
+  .storage-visual,
   .hero-figure > img,
   .search-bar,
   .btn {
@@ -1042,6 +1074,7 @@ summary:focus-visible {
   .hero-inner { gap: 2.5rem; }
   .hero-badge-wrap { width: 88px; height: 88px; top: -28px; right: -10px; }
   .grid-2 { grid-template-columns: 1fr; gap: 2.5rem; }
+  .update-layout { grid-template-columns: 1fr; }
   .cards { grid-template-columns: 1fr; }
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
   .help-grid { grid-template-columns: 1fr; }
@@ -1084,6 +1117,8 @@ summary:focus-visible {
   .hero-stats { gap: 1.5rem; }
 
   .stat-grid { grid-template-columns: 1fr; }
+
+  .storage-media { gap: 0.75rem; }
 
   .footer-grid { grid-template-columns: 1fr; gap: 2rem; }
 }
