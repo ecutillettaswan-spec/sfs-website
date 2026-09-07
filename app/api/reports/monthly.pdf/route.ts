@@ -132,8 +132,6 @@ export async function GET(request: Request) {
   operations.drawText('INTERPRETATION', { x: 44, y, size: 8, font: bold, color: rust });
   y -= 24;
   y = drawParagraph(operations, 'A found-empty rate describes what volunteers observed during checks. It does not measure how many snacks students took, how long a cabinet stayed empty, or an exact depletion time. Product-level forecasts remain gated until quantitative counts and reconciled stock movements produce enough reliable intervals.', 44, y, { size: 9, max: 98, leading: 13, color: muted });
-  operations.drawText('Privacy boundary', { x: 44, y: 110, size: 9, font: bold, color: ink });
-  drawParagraph(operations, 'This page excludes checker names, raw notes, volunteer schedules, cabinet locations, live status, and route instructions.', 44, 94, { size: 8.5, max: 100, leading: 12, color: muted });
 
   const stewardship = pdf.addPage([612, 792]);
   header(stewardship, 'Impact, stewardship & controls', 3);
@@ -163,9 +161,9 @@ export async function GET(request: Request) {
     y -= 22;
   }
   y -= 8;
-  stewardship.drawText('PRIVACY & METHODOLOGY', { x: 44, y, size: 8, font: bold, color: rust });
+  stewardship.drawText('REPORTING NOTES', { x: 44, y, size: 8, font: bold, color: rust });
   y -= 22;
-  drawParagraph(stewardship, 'SFS does not use cameras or track which individual students take food. This report excludes checker names, raw notes, volunteer schedules, donor identities, raw student feedback, live cabinet status, and precise routes. Donation equivalents are not described as distributed snacks until distribution evidence exists.', 44, y, { size: 8.5, max: 100, leading: 12, color: muted });
+  drawParagraph(stewardship, 'Measured, purchase-linked, and estimated figures remain labeled separately. Donation equivalents are not described as distributed snacks until distribution evidence exists.', 44, y, { size: 8.5, max: 100, leading: 12, color: muted });
   stewardship.drawText('Prepared by SFS Mission Control · figures require human review before publication', { x: 44, y: 46, size: 8, font: body, color: muted });
 
   const bytes = Uint8Array.from(await pdf.save());

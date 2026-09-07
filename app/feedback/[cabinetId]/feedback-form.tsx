@@ -14,6 +14,7 @@ const choices = [
 
 export default function FeedbackForm({ cabinet }: { cabinet: { id: string; name: string; floor: number; location: string } }) {
   const [kind, setKind] = useState('');
+  const [name, setName] = useState('');
   const [productRequest, setProductRequest] = useState('');
   const [message, setMessage] = useState('');
   const [website, setWebsite] = useState('');
@@ -25,7 +26,7 @@ export default function FeedbackForm({ cabinet }: { cabinet: { id: string; name:
     setStatus('saving'); setError('');
     const response = await fetch('/api/feedback', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ cabinetId: cabinet.id, kind, productRequest, message, website }),
+      body: JSON.stringify({ cabinetId: cabinet.id, kind, name, productRequest, message, website }),
     });
     const result = await response.json() as { error?: string };
     if (!response.ok) { setStatus('error'); setError(result.error ?? 'Feedback could not be saved.'); return; }
@@ -38,7 +39,7 @@ export default function FeedbackForm({ cabinet }: { cabinet: { id: string; name:
         <span className="feedback-check"><Check aria-hidden="true" /></span>
         <p className="eyebrow">Received</p>
         <h1>Thanks for looking out for each other.</h1>
-        <p>Your note went to the SFS team. We did not ask for your name or create a student profile.</p>
+        <p>Your note went to the SFS team.</p>
         <Link href="/" className="text-link">About Students Feeding Students</Link>
       </section>
     </main>
@@ -50,7 +51,6 @@ export default function FeedbackForm({ cabinet }: { cabinet: { id: string; name:
         <p className="eyebrow">Students Feeding Students</p>
         <h1>How is {cabinet.name}?</h1>
         <p className="feedback-location">Floor {cabinet.floor} · {cabinet.location}</p>
-        <p className="privacy-note">We don’t ask for your name. Please don’t include your name or anyone else’s personal information.</p>
         <fieldset className="feedback-options">
           <legend>Choose one</legend>
           {choices.map(({ key, label, detail, Icon }) => (
@@ -60,6 +60,7 @@ export default function FeedbackForm({ cabinet }: { cabinet: { id: string; name:
             </label>
           ))}
         </fieldset>
+        {kind && <label className="field"><span>Your name <small>(optional)</small></span><input value={name} onChange={(event) => setName(event.target.value)} maxLength={80} autoComplete="name" /></label>}
         {kind === 'request' && <label className="field"><span>What snack would you like?</span><input value={productRequest} onChange={(event) => setProductRequest(event.target.value)} maxLength={120} /></label>}
         {kind && <label className="field"><span>Optional note</span><textarea value={message} onChange={(event) => setMessage(event.target.value)} maxLength={500} rows={4} /><small>{message.length}/500</small></label>}
         <label className="honeypot" aria-hidden="true">Website<input name="website" tabIndex={-1} autoComplete="off" value={website} onChange={(event) => setWebsite(event.target.value)} /></label>

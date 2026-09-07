@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { ClipboardCheck, HandCoins, PackageCheck, PackagePlus, Pencil, Route, UserPlus, X } from 'lucide-react';
+import { ClipboardCheck, HandCoins, PackageCheck, PackagePlus, Pencil, Route, X } from 'lucide-react';
 import type { MissionData, Row } from './mission-control';
 
 export type DialogState =
@@ -11,8 +11,7 @@ export type DialogState =
   | { type: 'task'; cabinet?: Row }
   | { type: 'donation' }
   | { type: 'purchase' }
-  | { type: 'product'; product: Row }
-  | { type: 'email' };
+  | { type: 'product'; product: Row };
 
 type Props = {
   state: Exclude<DialogState, null>;
@@ -29,7 +28,6 @@ const config = {
   donation: { eyebrow: 'Donation to impact', title: 'Record a donation', Icon: HandCoins },
   purchase: { eyebrow: 'Purchasing', title: 'Record a purchase', Icon: PackagePlus },
   product: { eyebrow: 'Product catalog', title: 'Edit a product', Icon: Pencil },
-  email: { eyebrow: 'Accounts', title: 'Approve an email', Icon: UserPlus },
 };
 
 function localDateInputValue() {
@@ -71,7 +69,6 @@ export default function ActionDialog({ state, data, busy, onClose, mutate }: Pro
     if (state.type === 'donation') await mutate('add_donation', { ...Object.fromEntries(values.entries()), idempotencyKey: idempotencyKey.current });
     if (state.type === 'purchase') await mutate('add_purchase', { ...Object.fromEntries(values.entries()), idempotencyKey: idempotencyKey.current });
     if (state.type === 'product') await mutate('update_product', { id: state.product.id, ...Object.fromEntries(values.entries()) });
-    if (state.type === 'email') await mutate('approve_email', Object.fromEntries(values.entries()));
   }
 
   return (
@@ -103,7 +100,7 @@ export default function ActionDialog({ state, data, busy, onClose, mutate }: Pro
           </>}
 
           {state.type === 'task' && <>
-            <p className="dialog-intro">Assignments remain internal until a volunteer account is approved and notifications are enabled.</p>
+            <p className="dialog-intro">Assignments appear in the shared Mission Control workspace. Notifications remain off until they are enabled in Admin.</p>
             <label className="field"><span>Assignment</span><input name="title" required maxLength={160} placeholder="Restock the third-floor cabinet" /></label>
             <div className="form-grid"><label className="field"><span>Type</span><select name="type" defaultValue="restock"><option value="restock">Restock</option><option value="check">Cabinet check</option><option value="transfer">Transfer</option><option value="cleanup">Cleanup</option><option value="purchase">Purchase</option></select></label><label className="field"><span>Priority</span><select name="priority" defaultValue="normal"><option value="urgent">Urgent</option><option value="normal">Normal</option><option value="watch">Watch</option></select></label></div>
             <label className="field"><span>Cabinet</span><select name="cabinetId" defaultValue={state.cabinet?.id ?? ''}><option value="">Program-wide</option>{data.cabinets.map((cabinet) => <option key={cabinet.id} value={cabinet.id}>{cabinet.name} · {cabinet.location}</option>)}</select></label>
@@ -140,14 +137,7 @@ export default function ActionDialog({ state, data, busy, onClose, mutate }: Pro
             <label className="field"><span>Dietary labels · comma separated</span><input name="dietaryLabels" maxLength={600} defaultValue={Array.isArray(state.product.dietary_labels) ? state.product.dietary_labels.join(', ') : ''} placeholder="Gluten-free, vegan" /></label>
           </>}
 
-          {state.type === 'email' && <>
-            <p className="dialog-intro">The person must sign in using this exact email. Access checks happen on the server, not only in the interface.</p>
-            <label className="field"><span>Email address</span><input name="email" type="email" autoComplete="off" required placeholder="person@example.org" /></label>
-            <label className="field"><span>Name (optional)</span><input name="name" maxLength={120} /></label>
-            <label className="field"><span>Role</span><select name="role" defaultValue="volunteer"><option value="admin">Administrator</option><option value="coordinator">Coordinator</option><option value="volunteer">Volunteer</option><option value="board_viewer">Board viewer</option></select></label>
-          </>}
-
-          <div className="dialog-actions"><button type="button" className="secondary-button" onClick={onClose} disabled={busy}>Cancel</button><button className="primary-button" disabled={busy}>{busy ? 'Saving…' : state.type === 'email' ? 'Approve email' : state.type === 'full-restock' ? 'Record full restock' : 'Save'}</button></div>
+          <div className="dialog-actions"><button type="button" className="secondary-button" onClick={onClose} disabled={busy}>Cancel</button><button className="primary-button" disabled={busy}>{busy ? 'Saving…' : state.type === 'full-restock' ? 'Record full restock' : 'Save'}</button></div>
         </form>
       </section>
     </div>

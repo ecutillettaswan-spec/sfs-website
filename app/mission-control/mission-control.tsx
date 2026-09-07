@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import {
-  Activity, BarChart3, Bell, Bot, Boxes, Building2, CalendarCheck, ChevronRight, ClipboardCheck,
+  Activity, BarChart3, Bell, Boxes, Building2, CalendarCheck, ChevronRight, ClipboardCheck,
   Command, HandCoins, LayoutDashboard, Menu, PackageCheck, Route, Search, Settings2,
-  ShieldCheck, Sparkles, X,
+  LogOut, ShieldCheck, X,
 } from 'lucide-react';
 import ActionDialog, { type DialogState } from './action-dialog';
 import MissionView from './views';
@@ -37,6 +38,7 @@ export type MissionData = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metrics: Record<string, any>;
   featureModes: Record<string, string>;
+  authMode: 'shared-password';
 };
 
 const nav = [
@@ -115,17 +117,14 @@ export function CabinetCard({ cabinet, onOpen }: { cabinet: Row; onOpen?: (cabin
 }
 
 export default function MissionControl({ initialData }: { initialData: MissionData }) {
+  const router = useRouter();
   const [data, setData] = useState(initialData);
   const [view, setViewState] = useState(initialData.user.role === 'board_viewer' ? 'impact' : 'today');
   const [mobileNav, setMobileNav] = useState(false);
   const [dialog, setDialog] = useState<DialogState>(null);
   const [toast, setToast] = useState('');
   const [busy, setBusy] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
-  const [aiQuestion, setAiQuestion] = useState('What should we do next?');
-  const [aiAnswer, setAiAnswer] = useState('');
   const [search, setSearch] = useState('');
-  const primary = data.recommendations[0];
   const canAdmin = ['owner', 'admin'].includes(data.user.role);
   const visibleNav = data.user.role === 'board_viewer' ? nav.filter((item) => item.id === 'impact')
     : data.user.role === 'volunteer' ? nav.filter((item) => ['today', 'cabinets', 'routes', 'feedback'].includes(item.id))
@@ -205,15 +204,10 @@ export default function MissionControl({ initialData }: { initialData: MissionDa
     } finally { setBusy(false); }
   }
 
-  async function askAi() {
-    setBusy(true); setAiAnswer('');
-    try {
-      const response = await fetch('/api/ai', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ question: aiQuestion }) });
-      const result = await response.json() as { answer?: string; error?: string };
-      if (!response.ok) throw new Error(result.error ?? 'The briefing could not be generated.');
-      setAiAnswer(result.answer ?? 'No answer returned.');
-    } catch (error) { setAiAnswer(error instanceof Error ? error.message : 'The briefing could not be generated.'); }
-    finally { setBusy(false); }
+  async function signOut() {
+    await fetch('/api/mission-control/session', { method: 'DELETE' }).catch(() => undefined);
+    router.replace('/missioncontrol');
+    router.refresh();
   }
 
   return (
@@ -248,6 +242,7 @@ export default function MissionControl({ initialData }: { initialData: MissionDa
           <span>{data.user.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()}</span>
           <div><strong>{data.user.name}</strong><small>{formatRole(data.user.role)}</small></div>
         </div>
+        <button className="sidebar-signout" onClick={signOut}><LogOut aria-hidden="true" /> Lock Mission Control</button>
       </aside>
 
       {mobileNav && <button className="nav-scrim" onClick={() => setMobileNav(false)} aria-label="Close navigation" />}
@@ -280,20 +275,6 @@ export default function MissionControl({ initialData }: { initialData: MissionDa
           {view !== 'today' ? (
             <MissionView view={view} data={data} busy={busy} mutate={mutate} openDialog={setDialog} setView={setView} />
           ) : <>
-            <section className="mission-brief">
-              <div className="brief-mark"><Sparkles aria-hidden="true" /></div>
-              <div className="brief-copy">
-                <div className="brief-label"><span>SFS intelligence</span><b>Review</b></div>
-                <h2>{primary?.title ?? 'The cabinets are ready for the next count.'}</h2>
-                <p>{primary?.detail ?? 'No urgent issue is visible. Add unit counts during the next route to unlock product-level depletion estimates.'}</p>
-                <div className="brief-evidence">
-                  <span><ShieldCheck aria-hidden="true" /> {primary ? confidenceLabel(primary.confidence) : 'Needs quantitative history'}</span>
-                  <span><Activity aria-hidden="true" /> Latest source: {formatTime(data.metrics.latestCheckAt)}</span>
-                </div>
-              </div>
-              <button className="brief-action" onClick={() => setAiOpen(true)}>Ask Mission Control <ChevronRight aria-hidden="true" /></button>
-            </section>
-
             <section className="metrics-row" aria-label="Today at a glance">
               <Metric label="Needs attention" value={data.metrics.urgent} note={data.metrics.urgent ? 'plan for after-school closeout' : 'no after-school restock pressure'} />
               <Metric label="Cabinets active" value={`${data.metrics.activeCabinets}/${data.metrics.activeCabinets}`} note="across three floors" />
@@ -311,7 +292,7 @@ export default function MissionControl({ initialData }: { initialData: MissionDa
 
             <section className="lower-grid">
               <article className="panel recommendations-panel">
-                <div className="panel-heading"><div><p className="eyebrow">Recommended next</p><h2>Action queue</h2></div><Bot aria-hidden="true" /></div>
+                <div className="panel-heading"><div><p className="eyebrow">Recommended next</p><h2>Action queue</h2></div><ClipboardCheck aria-hidden="true" /></div>
                 <div className="recommendation-list">
                   {data.recommendations.length ? data.recommendations.slice(0, 4).map((item, index) => (
                     <div className="recommendation" key={item.id}>
@@ -324,7 +305,7 @@ export default function MissionControl({ initialData }: { initialData: MissionDa
               </article>
 
               <article className="panel system-panel">
-                <div className="panel-heading"><div><p className="eyebrow">System posture</p><h2>Ready, but gated.</h2></div><Settings2 aria-hidden="true" /></div>
+                <div className="panel-heading"><div><p className="eyebrow">System controls</p><h2>Feature settings</h2></div><Settings2 aria-hidden="true" /></div>
                 <div className="system-list">
                   {data.features.slice(0, 5).map((feature) => (
                     <div key={feature.key}><span className={`feature-state state-${feature.mode}`} />
@@ -339,18 +320,6 @@ export default function MissionControl({ initialData }: { initialData: MissionDa
         </main>
       </div>
       {dialog && <ActionDialog state={dialog} data={data} busy={busy} onClose={() => setDialog(null)} mutate={mutate} />}
-      {aiOpen && <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setAiOpen(false); }}>
-        <section className="action-dialog ai-dialog" role="dialog" aria-modal="true" aria-labelledby="ai-title">
-          <div className="dialog-heading"><div><p className="eyebrow">SFS intelligence · {data.featureModes.ai_briefing === 'on' ? 'On' : 'Review mode'}</p><h2 id="ai-title">Ask Mission Control</h2></div><button className="icon-button" onClick={() => setAiOpen(false)} aria-label="Close"><X /></button></div>
-          <p className="dialog-intro">Answers use operational facts only. Suggestions never purchase, message, publish, or change inventory without approval.</p>
-          <label className="field"><span>Your question</span><textarea rows={3} maxLength={500} value={aiQuestion} onChange={(event) => setAiQuestion(event.target.value)} /></label>
-          <div className="prompt-chips">
-            {['What should we do next?', 'What should we buy with $500?', 'Summarize cabinet risk today'].map((prompt) => <button key={prompt} type="button" onClick={() => setAiQuestion(prompt)}>{prompt}</button>)}
-          </div>
-          {aiAnswer && <div className="ai-answer" role="status"><Sparkles aria-hidden="true" /><p>{aiAnswer}</p></div>}
-          <button className="primary-button wide" disabled={busy || !aiQuestion.trim()} onClick={askAi}>{busy ? 'Analyzing…' : 'Generate briefing'}</button>
-        </section>
-      </div>}
       {toast && <div className="toast" role="status" aria-live="polite">{toast}</div>}
     </div>
   );

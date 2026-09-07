@@ -168,6 +168,7 @@ export const feedback = sqliteTable('feedback', {
   id: text('id').primaryKey(),
   cabinetId: text('cabinet_id').notNull(),
   kind: text('kind').notNull(),
+  submittedName: text('submitted_name'),
   productRequest: text('product_request'),
   message: text('message'),
   status: text('status').notNull().default('new'),

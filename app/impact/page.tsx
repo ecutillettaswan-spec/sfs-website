@@ -22,17 +22,13 @@ export default async function ImpactPage({ searchParams }: { searchParams: Promi
       <section className="impact-hero">
         <p className="eyebrow">Since launch · May 13, 2026</p>
         <h1>Food shared freely.<br /><em>Impact counted carefully.</em></h1>
-        <p>These figures describe the program without tracking which students take food. Estimated figures are labeled and reviewed before publication.</p>
+        <p>Estimated figures are labeled and reviewed before publication.</p>
       </section>
       <section className="impact-grid" aria-label="Program impact">
         <article><PackageCheck aria-hidden="true" /><strong>{impact.snacks.toLocaleString()}+</strong><span>snacks shared in the verified launch period</span></article>
         <article><School aria-hidden="true" /><strong>{impact.students.toLocaleString()}+</strong><span>students reached in week one</span></article>
         <article><HeartHandshake aria-hidden="true" /><strong>{impact.cabinets}</strong><span>free-access cabinets operating at OPRF</span></article>
         <article><ClipboardCheck aria-hidden="true" /><strong>{impact.checks.toLocaleString()}</strong><span>cabinet care checks recorded</span></article>
-      </section>
-      <section className="method-panel">
-        <div><p className="eyebrow">How we count</p><h2>No cameras. No student tracking.</h2></div>
-        <p>Volunteers record cabinet condition and inventory. Public totals never include checker names, raw notes, schedules, live cabinet status, or individual student behavior. Donation equivalents use the current documented average cost and are not described as distributed until distribution evidence exists.</p>
       </section>
       <footer className="impact-footer"><span>Solidarity. Not charity.</span><a href="https://www.zeffy.com/en-US/donation-form/sustain-the-safety-net-students-feeding-students-sfs">Support the cabinets</a></footer>
     </main>

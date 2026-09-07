@@ -5,13 +5,13 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const user = await getMissionUser();
-  if (!user) return Response.json({ error: 'Your email is not approved for Mission Control.' }, { status: 403 });
+  if (!user) return Response.json({ error: 'Mission Control access is required.' }, { status: 403 });
   return Response.json(await getMissionControlData(user), { headers: { 'cache-control': 'no-store' } });
 }
 
 export async function POST(request: Request) {
   const user = await getMissionUser();
-  if (!user) return Response.json({ error: 'Your email is not approved for Mission Control.' }, { status: 403 });
+  if (!user) return Response.json({ error: 'Mission Control access is required.' }, { status: 403 });
   try {
     const length = Number(request.headers.get('content-length') ?? 0);
     if (length > 24_000) return Response.json({ error: 'Request is too large.' }, { status: 413 });

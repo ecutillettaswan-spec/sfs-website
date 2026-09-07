@@ -5,31 +5,32 @@ import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
-export default async function MissionControlPage() {
-  const nativeCloudflare = process.env.AUTH_PROVIDER?.trim().toLowerCase() === 'cloudflare-access';
-  const accessReady = !nativeCloudflare
-    || (Boolean(process.env.CF_ACCESS_TEAM_DOMAIN?.trim()) && Boolean(process.env.CF_ACCESS_AUD?.trim()));
-  if (process.env.NODE_ENV === 'production' && (!process.env.OWNER_EMAIL?.trim() || !accessReady)) {
-    return (
-      <main className="access-denied">
-        <div className="access-card">
-          <p className="eyebrow">Secure setup required</p>
-          <h1>Mission Control is locked.</h1>
-          <p>The owner identity and Cloudflare Access settings must be configured before the first sign-in.</p>
-          <Link className="primary-button" href="/">Return to Students Feeding Students</Link>
-        </div>
-      </main>
-    );
-  }
+export default async function MissionControlPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const user = await getMissionUser();
   if (!user) {
+    const params = await searchParams;
+    const returnParams = new URLSearchParams();
+    for (const [key, value] of Object.entries(params ?? {})) {
+      if (key === 'login' || typeof value !== 'string') continue;
+      returnParams.set(key, value);
+    }
+    const returnTo = `/missioncontrol${returnParams.size ? `?${returnParams}` : ''}`;
+    const failed = params?.login === 'failed';
     return (
       <main className="access-denied">
-        <div className="access-card">
+        <div className="access-card shared-login-card">
+          <div className="login-mark" aria-hidden="true">SFS</div>
           <p className="eyebrow">Private operations</p>
-          <h1>This email has not been approved yet.</h1>
-          <p>Use the approved email for SFS Mission Control, or ask the owner to add your email and choose a role. No cabinet or volunteer data has been shown.</p>
-          <Link className="primary-button" href="/">Return to Students Feeding Students</Link>
+          <h1>Open Mission Control</h1>
+          <p>Enter the shared SFS password. Anyone with the password receives full Mission Control access.</p>
+          <form className="shared-login-form" action="/api/mission-control/session" method="post">
+            <input type="hidden" name="returnTo" value={returnTo} />
+            <label className="field"><span>Password</span><input name="password" type="password" autoComplete="current-password" autoFocus required /></label>
+            <label className="shared-remember"><input name="remember" type="checkbox" defaultChecked /><span>Remember this device for 30 days</span></label>
+            {failed && <p className="login-error" role="alert">That password didn’t work. Try again.</p>}
+            <button className="primary-button wide" type="submit">Open Mission Control</button>
+          </form>
+          <Link className="login-home-link" href="/">Return to Students Feeding Students</Link>
         </div>
       </main>
     );

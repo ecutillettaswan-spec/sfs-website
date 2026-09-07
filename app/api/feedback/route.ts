@@ -11,12 +11,13 @@ export async function POST(request: Request) {
     if (origin && new URL(origin).host !== new URL(request.url).host) {
       return Response.json({ error: 'Cross-site feedback is not accepted.' }, { status: 403 });
     }
-    const body = await request.json() as { cabinetId?: string; kind?: string; productRequest?: string; message?: string; website?: string };
+    const body = await request.json() as { cabinetId?: string; kind?: string; name?: string; productRequest?: string; message?: string; website?: string };
     if (body.website) return Response.json({ ok: true });
     if (!body.cabinetId || !body.kind) return Response.json({ error: 'Choose the feedback that best fits.' }, { status: 400 });
     const result = await submitAnonymousFeedback({
       cabinetId: body.cabinetId,
       kind: body.kind,
+      name: body.name,
       productRequest: body.productRequest,
       message: body.message,
     });

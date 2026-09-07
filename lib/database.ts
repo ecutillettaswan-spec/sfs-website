@@ -92,7 +92,7 @@ const schemaStatements = [
   )`,
   `CREATE TABLE IF NOT EXISTS feedback (
     id TEXT PRIMARY KEY, cabinet_id TEXT NOT NULL, kind TEXT NOT NULL,
-    product_request TEXT, message TEXT, status TEXT NOT NULL DEFAULT 'new', submitted_at TEXT NOT NULL
+    submitted_name TEXT, product_request TEXT, message TEXT, status TEXT NOT NULL DEFAULT 'new', submitted_at TEXT NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS feature_flags (
     key TEXT PRIMARY KEY, label TEXT NOT NULL, description TEXT NOT NULL,
@@ -142,14 +142,13 @@ const productSeeds = [
 
 const featureSeeds = [
   ['outbound_delivery', 'External delivery master gate', 'Emergency stop for every automated email or other external action.', 'Safety', 'off', 0],
-  ['ai_briefing', 'AI mission briefing', 'Turns live operations data into a prioritized daily plan.', 'Intelligence', 'review', 1],
   ['depletion_forecasts', 'Depletion forecasts', 'Predicts cabinet and product stockout risk as quantitative history grows.', 'Intelligence', 'review', 0],
   ['purchasing_recommendations', 'Purchasing recommendations', 'Balances price, nutrition, allergens, popularity, and stock need.', 'Intelligence', 'review', 0],
   ['email_alerts', 'Email alerts', 'Delivers approved low-stock and uncovered-route alerts.', 'Outbound', 'off', 1],
   ['weekly_reports', 'Weekly impact email', 'Prepares and sends the weekly internal operating report.', 'Outbound', 'review', 1],
   ['monthly_board_pdf', 'Monthly board PDF', 'Generates a board-ready monthly packet.', 'Reports', 'review', 0],
   ['public_impact', 'Public impact dashboard', 'Publishes approved aggregate impact numbers at /impact.', 'Public', 'review', 0],
-  ['anonymous_feedback', 'Anonymous QR feedback', 'Accepts privacy-safe feedback without student accounts or identifiers.', 'Public', 'on', 0],
+  ['anonymous_feedback', 'QR feedback', 'Collects cabinet updates, snack requests, and optional notes.', 'Public', 'on', 0],
 ] as const;
 
 let initialized: Promise<void> | null = null;
@@ -176,6 +175,8 @@ export async function ensureDatabase() {
     const existingPurchaseColumns = new Set(purchaseColumns.results.map((column) => column.name));
     if (!existingPurchaseColumns.has('snack_units')) await db.prepare('ALTER TABLE purchases ADD COLUMN snack_units INTEGER').run();
     if (!existingPurchaseColumns.has('donation_id')) await db.prepare('ALTER TABLE purchases ADD COLUMN donation_id TEXT').run();
+    const feedbackColumns = await db.prepare('PRAGMA table_info(feedback)').all<{ name: string }>();
+    if (!feedbackColumns.results.some((column) => column.name === 'submitted_name')) await db.prepare('ALTER TABLE feedback ADD COLUMN submitted_name TEXT').run();
     await db.prepare('CREATE INDEX IF NOT EXISTS idx_checks_import_batch ON cabinet_checks(import_batch_id, source_row)').run();
     const now = new Date().toISOString();
     await db.batch([
@@ -200,6 +201,8 @@ export async function ensureDatabase() {
       db.prepare(`INSERT OR IGNORE INTO settings (key,value,updated_at) VALUES ('launch_date','2026-05-13',?)`).bind(now),
       db.prepare(`INSERT OR IGNORE INTO settings (key,value,updated_at) VALUES ('estimated_cost_per_snack','0.50',?)`).bind(now),
       db.prepare("DELETE FROM feature_flags WHERE key='sensor_ingestion'"),
+      db.prepare("DELETE FROM feature_flags WHERE key='ai_briefing'"),
+      db.prepare("UPDATE feature_flags SET label='QR feedback',description='Collects cabinet updates, snack requests, and optional notes.',updated_at=? WHERE key='anonymous_feedback'").bind(now),
     ]);
     const cabinetLayout = await db.prepare("SELECT value FROM settings WHERE key='cabinet_layout_5x50_v1'").first<{ value: string }>();
     if (!cabinetLayout) {
@@ -230,65 +233,10 @@ export async function ensureDatabase() {
   return initialized;
 }
 
-export async function authenticateMissionUser(identity: { userId: string; email: string; displayName: string }) {
-  await ensureDatabase();
-  const db = getRawDb();
-  const email = identity.email.trim().toLowerCase();
-  const now = new Date().toISOString();
-  const existing = await db.prepare('SELECT * FROM users WHERE lower(email)=?').bind(email).first<Record<string, unknown>>();
-  if (existing) {
-    // The authenticated identity id is the stable account key. Do not rewrite a primary key
-    // during routine sign-in; D1 rejects that pattern in some Worker runtimes.
-    await db.prepare('UPDATE users SET last_seen_at=?, name=? WHERE lower(email)=?')
-      .bind(now, identity.displayName, email).run();
-    if (existing.status !== 'active') return null;
-    return { id: String(existing.id), email, name: identity.displayName, role: existing.role as MissionRole, status: String(existing.status) } satisfies MissionUser;
-  }
-
-  const userCount = await db.prepare("SELECT COUNT(*) AS count FROM users WHERE status='active'").first<{ count: number }>();
-  if (!userCount?.count) {
-    const bootstrapLock = await db.prepare("SELECT value FROM settings WHERE key='owner_bootstrapped'").first<{ value: string }>();
-    if (bootstrapLock) return null;
-    const configuredOwner = process.env.OWNER_EMAIL?.trim().toLowerCase();
-    if (process.env.NODE_ENV === 'production' && !configuredOwner) return null;
-    if (configuredOwner && email !== configuredOwner) return null;
-    await db.batch([
-      db.prepare(`INSERT INTO users (id,email,name,role,status,created_at,last_seen_at)
-        VALUES (?,?,?,'owner','active',?,?)`).bind(identity.userId, email, identity.displayName, now, now),
-      db.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('owner_bootstrapped',?,?)").bind(email, now),
-    ]);
-    await logActivity(identity.userId, 'bootstrapped owner account', 'user', identity.userId, email);
-    return { id: identity.userId, email, name: identity.displayName, role: 'owner', status: 'active' } satisfies MissionUser;
-  }
-
-  const approved = await db.prepare('SELECT * FROM approved_emails WHERE lower(email)=?').bind(email).first<Record<string, unknown>>();
-  if (!approved) return null;
-  await db.prepare(`INSERT INTO users (id,email,name,role,status,created_at,last_seen_at)
-    VALUES (?,?,?,?,'active',?,?)`).bind(identity.userId, email, identity.displayName, approved.role, now, now).run();
-  await logActivity(identity.userId, 'activated approved account', 'user', identity.userId, email);
-  return { id: identity.userId, email, name: identity.displayName, role: approved.role as MissionRole, status: 'active' } satisfies MissionUser;
-}
-
 export async function logActivity(actorId: string | null, action: string, entityType: string, entityId?: string | null, details?: string | null) {
   const db = getRawDb();
   await db.prepare(`INSERT INTO activity_log (id,actor_id,action,entity_type,entity_id,details,created_at)
     VALUES (?,?,?,?,?,?,?)`).bind(crypto.randomUUID(), actorId, action, entityType, entityId ?? null, details ?? null, new Date().toISOString()).run();
-}
-
-export async function claimAiRequest(actorId: string) {
-  await ensureDatabase();
-  const db = getRawDb();
-  const minuteAgo = new Date(Date.now() - 60_000).toISOString();
-  const hourAgo = new Date(Date.now() - 3_600_000).toISOString();
-  const counts = await db.prepare(`SELECT
-    SUM(CASE WHEN created_at>=? THEN 1 ELSE 0 END) AS minute_count,
-    COUNT(*) AS hour_count
-    FROM activity_log WHERE actor_id=? AND action='requested AI briefing' AND created_at>=?`)
-    .bind(minuteAgo, actorId, hourAgo).first<{ minute_count: number; hour_count: number }>();
-  if (Number(counts?.minute_count ?? 0) >= 5 || Number(counts?.hour_count ?? 0) >= 30) {
-    throw new Error('AI briefing limit reached. Wait a few minutes and try again.');
-  }
-  await logActivity(actorId, 'requested AI briefing', 'ai', null);
 }
 
 function safeJson<T>(value: unknown, fallback: T): T {
@@ -538,7 +486,7 @@ export async function getMissionControlData(user: MissionUser) {
   await ensureDatabase();
   await autoImportTrackerIfNeeded(user.id);
   const db = getRawDb();
-  const [cabinetRows, productRows, inventoryRows, eventRows, checkRows, analyticsCheckRows, taskRows, donationRows, purchaseRows, feedbackRows, featureRows, reportRows, userRows, approvedRows, shiftRows, activityRows, settingsRows, totals] = await Promise.all([
+  const [cabinetRows, productRows, inventoryRows, eventRows, checkRows, analyticsCheckRows, taskRows, donationRows, purchaseRows, feedbackRows, featureRows, reportRows, shiftRows, activityRows, settingsRows, totals] = await Promise.all([
     db.prepare('SELECT * FROM cabinets WHERE active=1 ORDER BY sort_order').all<Record<string, unknown>>(),
     db.prepare('SELECT * FROM products WHERE active=1 ORDER BY popularity_score DESC, name').all<Record<string, unknown>>(),
     db.prepare(`SELECT i.*, p.name AS product_name, p.category, p.units_per_case, p.cost_per_case,
@@ -554,8 +502,6 @@ export async function getMissionControlData(user: MissionUser) {
     db.prepare("SELECT f.*, c.name AS cabinet_name FROM feedback f JOIN cabinets c ON c.id=f.cabinet_id ORDER BY submitted_at DESC LIMIT 100").all<Record<string, unknown>>(),
     db.prepare('SELECT * FROM feature_flags ORDER BY category,label').all<Record<string, unknown>>(),
     db.prepare('SELECT * FROM reports ORDER BY created_at DESC LIMIT 50').all<Record<string, unknown>>(),
-    db.prepare('SELECT id,email,name,role,status,created_at,last_seen_at FROM users ORDER BY created_at').all<Record<string, unknown>>(),
-    db.prepare('SELECT * FROM approved_emails ORDER BY created_at DESC').all<Record<string, unknown>>(),
     db.prepare('SELECT * FROM volunteer_shifts ORDER BY shift_date,start_time LIMIT 100').all<Record<string, unknown>>(),
     db.prepare('SELECT * FROM activity_log ORDER BY created_at DESC LIMIT 30').all<Record<string, unknown>>(),
     db.prepare('SELECT key,value,updated_at FROM settings').all<Record<string, unknown>>(),
@@ -801,6 +747,7 @@ export async function getMissionControlData(user: MissionUser) {
 
   const isAdministrator = ['owner', 'admin'].includes(user.role);
   const isCoordinator = user.role === 'coordinator';
+  const isSharedAccess = user.id === 'shared-owner';
   const scrubCheck = (check: DbRow) => ({
     ...check,
     checker_name: undefined,
@@ -822,6 +769,7 @@ export async function getMissionControlData(user: MissionUser) {
   );
   return {
     user,
+    authMode: 'shared-password' as const,
     cabinets: user.role === 'board_viewer' ? [] : visibleCabinets,
     products: user.role === 'board_viewer' ? [] : products,
     inventory: user.role === 'board_viewer' ? [] : inventory,
@@ -836,11 +784,9 @@ export async function getMissionControlData(user: MissionUser) {
       : reportRows.results).map((row) => ({ ...row, metrics: safeJson(row.metrics_json, {}) })),
     features: user.role === 'board_viewer' ? [] : featureRows.results,
     featureModes,
-    users: isAdministrator ? userRows.results : isCoordinator ? userRows.results
-      .filter((row) => row.status === 'active')
-      .map((row) => ({ id: row.id, name: row.name, role: row.role, status: row.status })) : [],
-    approvedEmails: isAdministrator ? approvedRows.results : [],
-    activity: isAdministrator ? activityRows.results : [],
+    users: [],
+    approvedEmails: [],
+    activity: isAdministrator ? activityRows.results.filter((row) => !isSharedAccess || !['user', 'approved_email'].includes(String(row.entity_type))) : [],
     recommendations: user.role === 'board_viewer' ? [] : recommendations,
     purchaseRecommendations: user.role === 'board_viewer' || featureModes.purchasing_recommendations === 'off' ? [] : purchaseRecommendations,
     analytics: user.role === 'board_viewer' ? null : analytics,
@@ -898,11 +844,11 @@ export async function getCabinetForFeedback(cabinetId: string) {
     FROM cabinets WHERE id=? AND active=1`).bind(cabinetId).first<Record<string, unknown>>();
 }
 
-export async function submitAnonymousFeedback(input: { cabinetId: string; kind: string; productRequest?: string; message?: string }) {
+export async function submitAnonymousFeedback(input: { cabinetId: string; kind: string; name?: string; productRequest?: string; message?: string }) {
   await ensureDatabase();
   const db = getRawDb();
   const flag = await db.prepare("SELECT mode FROM feature_flags WHERE key='anonymous_feedback'").first<{ mode: FeatureMode }>();
-  if (flag?.mode === 'off') throw new Error('Anonymous feedback is currently paused.');
+  if (flag?.mode === 'off') throw new Error('Feedback is currently paused.');
   const cabinet = await db.prepare('SELECT id FROM cabinets WHERE id=? AND active=1').bind(input.cabinetId).first<{ id: string }>();
   if (!cabinet) throw new Error('That cabinet is not available for feedback.');
   if (!['empty', 'damaged', 'request', 'dietary', 'other'].includes(input.kind)) throw new Error('Choose a valid feedback option.');
@@ -911,14 +857,23 @@ export async function submitAnonymousFeedback(input: { cabinetId: string; kind: 
   if (Number(recentVolume?.count ?? 0) >= 30) throw new Error('The feedback inbox is busy. Please try again in a minute.');
   const duplicateSince = new Date(Date.now() - 10_000).toISOString();
   const duplicate = await db.prepare(`SELECT id FROM feedback WHERE cabinet_id=? AND kind=?
-    AND COALESCE(product_request,'')=? AND COALESCE(message,'')=? AND submitted_at>=? LIMIT 1`)
-    .bind(input.cabinetId, input.kind, input.productRequest?.trim().slice(0, 120) ?? '', input.message?.trim().slice(0, 500) ?? '', duplicateSince)
+    AND COALESCE(submitted_name,'')=? AND COALESCE(product_request,'')=?
+    AND COALESCE(message,'')=? AND submitted_at>=? LIMIT 1`)
+    .bind(
+      input.cabinetId,
+      input.kind,
+      input.name?.trim().slice(0, 80) ?? '',
+      input.productRequest?.trim().slice(0, 120) ?? '',
+      input.message?.trim().slice(0, 500) ?? '',
+      duplicateSince,
+    )
     .first<{ id: string }>();
   if (duplicate) return duplicate;
   const id = crypto.randomUUID();
-  await db.prepare(`INSERT INTO feedback (id,cabinet_id,kind,product_request,message,status,submitted_at)
-    VALUES (?,?,?,?,?,'new',?)`).bind(
+  await db.prepare(`INSERT INTO feedback (id,cabinet_id,kind,submitted_name,product_request,message,status,submitted_at)
+    VALUES (?,?,?,?,?,?,'new',?)`).bind(
       id, input.cabinetId, input.kind.slice(0, 60),
+      input.name?.trim().slice(0, 80) || null,
       input.productRequest?.trim().slice(0, 120) || null,
       input.message?.trim().slice(0, 500) || null,
       new Date().toISOString(),
@@ -1462,47 +1417,6 @@ export async function mutateMissionControl(user: MissionUser, action: string, pa
     return { ok: true, message: `${name} updated.` };
   }
 
-  if (action === 'approve_email') {
-    if (!isAdmin) throw new Error('Only owners and administrators can approve accounts.');
-    const email = String(payload.email ?? '').trim().toLowerCase();
-    if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error('Enter a valid email address.');
-    const role = String(payload.role ?? 'volunteer');
-    if (!['admin', 'coordinator', 'volunteer', 'board_viewer'].includes(role)) throw new Error('Choose a valid account role.');
-    await db.prepare(`INSERT INTO approved_emails (email,name,role,added_by,created_at) VALUES (?,?,?,?,?)
-      ON CONFLICT(email) DO UPDATE SET name=excluded.name,role=excluded.role,added_by=excluded.added_by`)
-      .bind(email, payload.name ? String(payload.name).slice(0, 120) : null, role, user.id, now).run();
-    await logActivity(user.id, 'approved account email', 'approved_email', email, role);
-    return { ok: true, message: `${email} can now sign in as ${role.replace('_', ' ')}.` };
-  }
-
-  if (action === 'remove_approved_email') {
-    if (!isAdmin) throw new Error('Only owners and administrators can manage accounts.');
-    const email = String(payload.email ?? '').trim().toLowerCase();
-    await db.prepare('DELETE FROM approved_emails WHERE email=?').bind(email).run();
-    await logActivity(user.id, 'removed approved email', 'approved_email', email);
-    return { ok: true, message: 'Approval removed.' };
-  }
-
-  if (action === 'update_user') {
-    if (!isAdmin) throw new Error('Only owners and administrators can manage accounts.');
-    const targetId = String(payload.id ?? '');
-    const role = String(payload.role ?? 'volunteer');
-    const status = String(payload.status ?? 'active');
-    if (!['owner', 'admin', 'coordinator', 'volunteer', 'board_viewer'].includes(role)) throw new Error('Choose a valid account role.');
-    if (!['active', 'revoked'].includes(status)) throw new Error('Choose active or revoked access.');
-    if (role === 'owner' && user.role !== 'owner') throw new Error('Only an owner can grant owner access.');
-    const target = await db.prepare('SELECT role,status FROM users WHERE id=?').bind(targetId).first<{ role: string; status: string }>();
-    if (!target) throw new Error('Account not found.');
-    if (target.role === 'owner' && user.role !== 'owner') throw new Error('Only an owner can change another owner account.');
-    if (target.role === 'owner' && target.status === 'active' && (role !== 'owner' || status !== 'active')) {
-      const owners = await db.prepare("SELECT COUNT(*) AS count FROM users WHERE role='owner' AND status='active'").first<{ count: number }>();
-      if (Number(owners?.count ?? 0) <= 1) throw new Error('Mission Control must always have at least one active owner.');
-    }
-    await db.prepare('UPDATE users SET role=?,status=? WHERE id=?').bind(role, status, targetId).run();
-    await logActivity(user.id, 'updated account access', 'user', targetId, `${role} · ${status}`);
-    return { ok: true, message: 'Account access updated.' };
-  }
-
   if (action === 'set_feature') {
     if (!isAdmin) throw new Error('Only owners and administrators can change system controls.');
     const key = String(payload.key ?? '');
@@ -1511,8 +1425,7 @@ export async function mutateMissionControl(user: MissionUser, action: string, pa
     const current = await db.prepare('SELECT requires_setup FROM feature_flags WHERE key=?').bind(key).first<{ requires_setup: number }>();
     if (!current) throw new Error('Feature not found.');
     if (mode === 'on' && current?.requires_setup) {
-      const ready = key === 'ai_briefing' ? Boolean(process.env.OPENAI_API_KEY)
-        : ['email_alerts', 'weekly_reports'].includes(key) ? Boolean(process.env.RESEND_API_KEY && process.env.ALERT_FROM_EMAIL && process.env.ALERT_RECIPIENTS && process.env.AUTOMATION_SECRET)
+      const ready = ['email_alerts', 'weekly_reports'].includes(key) ? Boolean(process.env.RESEND_API_KEY && process.env.ALERT_FROM_EMAIL && process.env.ALERT_RECIPIENTS && process.env.AUTOMATION_SECRET)
         : true;
       if (!ready) throw new Error('This feature still needs its connection or hardware setup. Keep it in Review until that is added.');
     }
@@ -1527,7 +1440,7 @@ export async function mutateMissionControl(user: MissionUser, action: string, pa
     const status = String(payload.status ?? 'reviewed');
     if (!['new', 'reviewed', 'resolved', 'archived'].includes(status)) throw new Error('Choose a valid feedback status.');
     await db.prepare('UPDATE feedback SET status=? WHERE id=?').bind(status, id).run();
-    await logActivity(user.id, 'reviewed anonymous feedback', 'feedback', id, status);
+    await logActivity(user.id, 'reviewed feedback', 'feedback', id, status);
     return { ok: true, message: 'Feedback updated.' };
   }
 

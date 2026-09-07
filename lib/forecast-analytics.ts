@@ -1067,7 +1067,7 @@ export function buildForecastAnalytics({
   const readiness = inventoryReadiness(rawInventoryEvents, cabinetNames, now);
   const latestObservationAt = observations.at(-1)?.checkedAt.toISOString() ?? null;
   const dataQualityNotes = [
-    'The outcome is binary: whether a cabinet was found empty when somebody checked it. It does not measure student identities, visits, or individual behavior.',
+    'The outcome is binary: whether a cabinet was found empty when somebody checked it. It does not measure consumption quantity or how long a cabinet remained empty.',
     'After-school full-restock records and checks without a valid empty/not-empty answer are excluded from empty-risk estimates.',
     'Rows flagged with contradictory validation issues are excluded, and at most the latest check per cabinet per Chicago date-hour is modeled so rapid repeats do not inflate certainty.',
     'Current-school-year observations influence the estimate three times as much as the immediately previous year; older school years decline progressively.',
@@ -1083,7 +1083,7 @@ export function buildForecastAnalytics({
     timezone: CHICAGO_TIME_ZONE,
     methodology: {
       outcome: 'Estimated probability that a cabinet is found empty at its next recorded check.',
-      interpretation: 'An observational availability-risk estimate from cabinet checks, not an exact stockout time or a measure of individual student behavior.',
+      interpretation: 'An observational availability-risk estimate from cabinet checks, not an exact stockout time or a measured consumption rate.',
       schoolYearDefinition: 'August 1 through July 31 in America/Chicago.',
       currentSchoolYear,
       yearWeights,

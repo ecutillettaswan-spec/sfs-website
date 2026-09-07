@@ -5,7 +5,7 @@ import {
   CheckCircle2, ChevronRight, CircleDollarSign, ClipboardCheck, Download,
   FileBarChart, HandCoins, History, Import, Info, ListChecks, Mail, MapPin, PackageCheck, PackagePlus,
   Pencil, Printer, QrCode, RefreshCw, Route, Settings2, ShieldCheck, ShoppingCart, SlidersHorizontal,
-  Sparkles, UserPlus, Users, Warehouse, WifiOff,
+  Sparkles, Users, Warehouse, WifiOff,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { CabinetCard, type MissionData, type Row } from './mission-control';
@@ -145,9 +145,9 @@ function ImpactView({ data, openDialog, mutate, busy }: Pick<Props, 'data' | 'op
       <div><span>Donation-linked snack impact</span><strong>{Number(data.metrics.donationSnacks).toLocaleString()}</strong><small>{Number(data.metrics.donationSnacks) ? `${Number(data.metrics.purchaseLinkedDonationSnacks).toLocaleString()} purchase-linked · ${Number(data.metrics.estimatedDonationSnacks).toLocaleString()} estimated` : 'eligible funds not yet entered'}</small></div>
     </section>
     <section className="report-grid">
-      <article className="panel report-card featured-report"><FileBarChart /><p className="eyebrow">Monthly board packet</p><h2>{monthName} · month to date</h2><p>A privacy-safe monthly snapshot of cabinet checks, impact, purchasing, controls, and methodology—with names, raw notes, routes, locations, and live status excluded.</p><div className="draft-badge">{pdfMode === 'on' ? 'Approved output' : pdfMode === 'review' ? 'Draft · review mode' : 'Off'}</div>{pdfMode === 'off' ? <span className="read-only-note">Enable in Admin to generate</span> : <div className="report-downloads"><a className="primary-button wide" href="/api/reports/monthly.pdf" target="_blank" rel="noreferrer"><Download /> Current month draft</a><a className="secondary-button wide" href={`/api/reports/monthly.pdf?month=${priorMonthKey}`} target="_blank" rel="noreferrer"><Download /> Closed {priorMonthName}</a></div>}</article>
+      <article className="panel report-card featured-report"><FileBarChart /><p className="eyebrow">Monthly board packet</p><h2>{monthName} · month to date</h2><p>A monthly snapshot of cabinet checks, impact, purchasing, controls, and methodology.</p><div className="draft-badge">{pdfMode === 'on' ? 'Approved output' : pdfMode === 'review' ? 'Draft · review mode' : 'Off'}</div>{pdfMode === 'off' ? <span className="read-only-note">Enable in Admin to generate</span> : <div className="report-downloads"><a className="primary-button wide" href="/api/reports/monthly.pdf" target="_blank" rel="noreferrer"><Download /> Current month draft</a><a className="secondary-button wide" href={`/api/reports/monthly.pdf?month=${priorMonthKey}`} target="_blank" rel="noreferrer"><Download /> Closed {priorMonthName}</a></div>}</article>
       <article className="panel report-card"><Mail /><p className="eyebrow">Weekly operating report</p><h2>Automatic draft</h2><p>Prepared from cabinet checks, inventory changes, routes, and spending. Delivery requires the weekly feature and external-delivery master gate to both be On.</p><div className="draft-badge">{weeklyMode === 'on' ? 'On · scheduled delivery eligible' : weeklyMode === 'review' ? 'Review · sends nothing' : 'Off'}</div>{canGenerate && weeklyMode !== 'off' ? <button className="secondary-button wide" disabled={busy} onClick={() => mutate('generate_weekly_report', {})}><Sparkles /> {busy ? 'Generating…' : 'Generate weekly draft'}</button> : <span className="read-only-note">{canGenerate ? 'Enable Review to generate drafts' : 'Read-only access'}</span>}</article>
-      <article className="panel report-card"><BarChart3 /><p className="eyebrow">Public impact</p><h2>Review the public view</h2><p>Only approved aggregate snapshots appear publicly—never names, schedules, raw feedback, or live cabinet stock.</p><div className="draft-badge">{data.featureModes.public_impact === 'on' ? 'Published' : 'Private preview'}</div><a className="secondary-button wide" href="/impact?preview=1"><ChevronRight /> Open preview</a></article>
+      <article className="panel report-card"><BarChart3 /><p className="eyebrow">Public impact</p><h2>Review the public view</h2><p>Only approved aggregate snapshots appear publicly.</p><div className="draft-badge">{data.featureModes.public_impact === 'on' ? 'Published' : 'Private preview'}</div><a className="secondary-button wide" href="/impact?preview=1"><ChevronRight /> Open preview</a></article>
     </section>
     {!!data.reports.length && <section className="panel data-panel"><div className="panel-heading"><div><p className="eyebrow">Report archive</p><h2>Drafts and published reports</h2></div><FileBarChart /></div><div className="report-archive">{data.reports.map((report) => <div key={report.id}><span className="draft-badge">{report.status}</span><div><strong>{String(report.type).replace(/\b\w/g, (letter) => letter.toUpperCase())} report · {dateLabel(report.period_start)}–{dateLabel(report.period_end)}</strong><p>{report.summary}</p></div></div>)}</div></section>}
     <section className="panel data-panel"><div className="panel-heading"><div><p className="eyebrow">Donation ledger</p><h2>Donation to impact</h2></div><CircleDollarSign /></div>
@@ -159,12 +159,11 @@ function ImpactView({ data, openDialog, mutate, busy }: Pick<Props, 'data' | 'op
 
 function FeedbackView({ data, mutate, busy }: Pick<Props, 'data' | 'mutate' | 'busy'>) {
   return <>
-    <PageHead eyebrow="Student voice" title="Anonymous feedback" copy="One-tap cabinet feedback without names, student accounts, location tracking, or profiles."
+    <PageHead eyebrow="Student voice" title="Cabinet feedback" copy="One-tap cabinet updates and snack requests, with an optional name."
       action={<button className="secondary-button" onClick={() => window.print()}><Printer /> Print QR cards</button>} />
-    <div className="privacy-banner"><ShieldCheck /><div><strong>Privacy boundary</strong><span>Free text is untrusted, private, and never sent directly into action-capable AI. Students are reminded not to include personal information.</span></div></div>
     <section className="qr-grid">{data.cabinets.map((cabinet) => <article className="qr-card" key={cabinet.id}><div className="qr-code"><QRCodeSVG value={`https://studentsfeedingstudents.org/feedback/${cabinet.id}`} size={132} level="M" fgColor="#171310" bgColor="#fffdf9" /></div><div><p className="eyebrow">Scan at cabinet</p><h2>{cabinet.name}</h2><p>Floor {cabinet.floor} · {cabinet.location}</p><a href={`/feedback/${cabinet.id}`}>Open form <ChevronRight /></a></div></article>)}</section>
     <section className="panel feedback-inbox"><div className="panel-heading"><div><p className="eyebrow">Moderation inbox</p><h2>{data.metrics.feedbackNew} new response{data.metrics.feedbackNew === 1 ? '' : 's'}</h2></div><BellRing /></div>
-      {data.feedback.length ? <div className="feedback-list">{data.feedback.map((item) => <article key={item.id}><span className={`feedback-kind kind-${item.kind}`}>{String(item.kind).replaceAll('_', ' ')}</span><div><strong>{item.cabinet_name}</strong><p>{item.product_request || item.message || 'No additional note.'}</p><small>{dateLabel(item.submitted_at, true)} · {item.status}</small></div>{item.status === 'new' && <button className="secondary-button" disabled={busy} onClick={() => mutate('review_feedback', { id: item.id, status: 'reviewed' })}><Check /> Reviewed</button>}</article>)}</div> : emptyState(<QrCode />, 'No feedback yet', 'The cabinet-specific forms are live and ready to receive privacy-safe responses.')}
+      {data.feedback.length ? <div className="feedback-list">{data.feedback.map((item) => <article key={item.id}><span className={`feedback-kind kind-${item.kind}`}>{String(item.kind).replaceAll('_', ' ')}</span><div><strong>{item.cabinet_name}{item.submitted_name ? ` · ${item.submitted_name}` : ''}</strong><p>{item.product_request || item.message || 'No additional note.'}</p><small>{dateLabel(item.submitted_at, true)} · {item.status}</small></div>{item.status === 'new' && <button className="secondary-button" disabled={busy} onClick={() => mutate('review_feedback', { id: item.id, status: 'reviewed' })}><Check /> Reviewed</button>}</article>)}</div> : emptyState(<QrCode />, 'No feedback yet', 'The cabinet-specific forms are live and ready for responses.')}
     </section>
   </>;
 }
@@ -177,27 +176,20 @@ function FeatureControl({ feature, busy, mutate }: { feature: Row; busy: boolean
   return <article className="feature-control"><div className="feature-copy"><span className={`feature-state state-${feature.mode}`} /><div><strong>{feature.label}</strong><p>{feature.description}</p>{Number(feature.requires_setup) === 1 && <small><AlertTriangle /> Connection or setup required before On</small>}</div></div><div className="mode-control" role="group" aria-label={`${feature.label} mode`}>{['off', 'review', 'on'].map((mode) => <button key={mode} className={feature.mode === mode ? 'active' : ''} disabled={busy} onClick={() => choose(mode)}>{mode === 'off' ? 'Off' : mode === 'review' ? 'Review' : 'On'}</button>)}</div></article>;
 }
 
-function AdminView({ data, mutate, openDialog, busy }: Pick<Props, 'data' | 'mutate' | 'openDialog' | 'busy'>) {
+function AdminView({ data, mutate, busy }: Pick<Props, 'data' | 'mutate' | 'busy'>) {
   const groups = Object.groupBy(data.features, (feature) => String(feature.category));
   return <>
-    <PageHead eyebrow="Owner controls" title="Admin" copy="Accounts, activation gates, tracker imports, and an audit history for the whole operation."
-      action={<button className="primary-button" onClick={() => openDialog({ type: 'email' })}><UserPlus /> Approve an email</button>} />
+    <PageHead eyebrow="Owner controls" title="Admin" copy="Shared access, activation gates, tracker imports, and an audit history for the whole operation." />
     <section className="admin-grid">
-      <article className="panel accounts-panel"><div className="panel-heading"><div><p className="eyebrow">Role-based access</p><h2>People & permissions</h2></div><Users /></div>
-        <div className="account-list">{data.users.map((account) => <div key={account.id}>
-          <span>{String(account.name).split(/\s+/).map((part: string) => part[0]).join('').slice(0,2).toUpperCase()}</span>
-          <div><strong>{account.name}{account.id === data.user.id ? ' · You' : ''}</strong><small>{account.email}</small></div>
-          <label className="compact-field"><span className="sr-only">Role for {account.name}</span><select aria-label={`Role for ${account.name}`} value={account.role} disabled={busy} onChange={(event) => mutate('update_user', { id: account.id, role: event.target.value, status: account.status })}><option value="owner">Owner</option><option value="admin">Administrator</option><option value="coordinator">Coordinator</option><option value="volunteer">Volunteer</option><option value="board_viewer">Board viewer</option></select></label>
-          <button className={account.status === 'active' ? 'access-active' : 'access-revoked'} disabled={busy} onClick={() => mutate('update_user', { id: account.id, role: account.role, status: account.status === 'active' ? 'revoked' : 'active' })}>{account.status === 'active' ? 'Active' : 'Revoked'}</button>
-        </div>)}</div>
-        {!!data.approvedEmails.length && <details className="approved-list"><summary>{data.approvedEmails.length} approved email{data.approvedEmails.length === 1 ? '' : 's'} awaiting or available for sign-in</summary>{data.approvedEmails.map((item) => <div key={item.email}><span>{item.email} · {String(item.role).replaceAll('_', ' ')}</span><button disabled={busy} onClick={() => mutate('remove_approved_email', { email: item.email })}>Remove</button></div>)}</details>}
-        <button className="secondary-button wide" onClick={() => openDialog({ type: 'email' })}><UserPlus /> Add approved email</button>
+      <article className="panel accounts-panel"><div className="panel-heading"><div><p className="eyebrow">Shared password</p><h2>One key for the SFS team</h2></div><Users /></div>
+        <div className="shared-access-summary"><ShieldCheck /><div><strong>Full Mission Control access</strong><p>Anyone who knows the shared password can view data and use every owner control. Email approval and individual roles are no longer required.</p></div></div>
+        <p className="shared-access-note">Use “Lock Mission Control” in the sidebar when leaving a shared device.</p>
       </article>
       <article className="panel import-panel"><div className="panel-heading"><div><p className="eyebrow">Legacy tracker</p><h2>Migration status</h2></div><Import /></div>
         <div className="migration-stat"><strong>{Number(data.metrics.trackerChecks).toLocaleString()}</strong><span>legacy tracker checks available in Mission Control</span></div>
         <p>{data.metrics.trackerSyncConfigured ? <>Last synced {dateLabel(data.metrics.trackerLastImport, true)}. Mission Control checks for new rows at most every five minutes; manual re-import is also safe because fingerprints prevent duplicate history.</> : <>Automatic sync is not configured on this deployment. Existing imported history remains available.</>}</p>
         <button className="secondary-button wide" disabled={busy || !data.metrics.trackerSyncConfigured} onClick={() => mutate('import_tracker', {})}><RefreshCw /> {busy ? 'Syncing…' : data.metrics.trackerSyncConfigured ? 'Sync tracker now' : 'Sync not configured'}</button>
-        <div className="security-next"><AlertTriangle /><p><strong>Protected bridge</strong>The source address is server-only. Before adding non-owner accounts, replace anonymous Sheet access with an authenticated CSV proxy, then restrict the original Sheet and retire the shared-password tracker.</p></div>
+        <div className="security-next"><AlertTriangle /><p><strong>Shared-password boundary</strong>The tracker source stays server-only, but anyone with the Mission Control password receives full operational access.</p></div>
       </article>
     </section>
     <section className="panel feature-panel"><div className="panel-heading"><div><p className="eyebrow">Activation center</p><h2>Off, Review, or On—feature by feature</h2></div><Settings2 /></div>
@@ -218,6 +210,6 @@ export default function MissionView(props: Props) {
   if (props.view === 'inventory') return <InventoryView data={props.data} openDialog={props.openDialog} />;
   if (props.view === 'impact') return <ImpactView data={props.data} openDialog={props.openDialog} mutate={props.mutate} busy={props.busy} />;
   if (props.view === 'feedback') return <FeedbackView data={props.data} mutate={props.mutate} busy={props.busy} />;
-  if (props.view === 'admin') return <AdminView data={props.data} mutate={props.mutate} openDialog={props.openDialog} busy={props.busy} />;
+  if (props.view === 'admin') return <AdminView data={props.data} mutate={props.mutate} busy={props.busy} />;
   return <section className="placeholder-view"><p className="eyebrow">Mission Control</p><h2>Choose a workspace</h2></section>;
 }

@@ -7,15 +7,15 @@ The Students Feeding Students website and private SFS Mission Control for operat
 ## What is included
 
 - Public SFS website at `/`
-- Private, role-based Mission Control at `/missioncontrol`
+- Password-protected Mission Control at `/missioncontrol`
 - Existing password-protected `/tracker` preserved alongside an idempotent Google Sheet history import
 - Manual cabinet inventory and field checks
 - Route/task handoffs and volunteer assignments
 - Evidence-gated depletion forecasts and purchasing recommendations
 - Donation-to-purchase impact attribution
-- Anonymous cabinet QR feedback without student accounts or tracking
+- Cabinet QR feedback with an optional name field
 - Review-gated public impact dashboard, weekly reports, and monthly PDFs
-- Off/Review/On controls for AI, outbound email, reports, and publishing
+- Off/Review/On controls for outbound email, reports, forecasts, and publishing
 
 ## Local development
 
@@ -43,11 +43,10 @@ npm run db:generate
 
 Copy `.env.example` for local values. Production values belong in Sites environment settings, never in source control.
 
-- `OWNER_EMAIL` is required and must match the exact approved sign-in email for the first owner.
-- Native Cloudflare Pages uses `AUTH_PROVIDER=cloudflare-access`, `CF_ACCESS_TEAM_DOMAIN`, and `CF_ACCESS_AUD` so Access identities are cryptographically verified before app-level roles are applied.
+- Mission Control uses the same shared password as the legacy tracker. Anyone with it receives full owner access.
+- Set `MISSION_CONTROL_PASSWORD` and a random 32-character-or-longer `MISSION_CONTROL_SESSION_SECRET` as encrypted server-side Cloudflare secrets.
 - `TRACKER_CSV_URL` is the private, server-only CSV export or proxy used by the legacy Form bridge. Do not hard-code a Sheet ID in source.
 - `TRACKER_SYNC_BEARER_TOKEN` is optional for a protected CSV proxy. Restrict or replace the anonymously readable Sheet before broadening access beyond the owner review.
-- `OPENAI_API_KEY` is optional; a deterministic operations engine remains available without it.
 - Resend and automation values are required before email/report delivery can move from Review to On.
 
-The outbound master gate starts Off. Forecasts remain advisory and exact stockout times stay unavailable until enough quantitative count history exists. Hardware sensing is deferred; the current system uses manual counts, no cameras, and no student identification or tracking.
+The outbound master gate starts Off. Forecasts remain advisory and exact stockout times stay unavailable until enough quantitative count history exists. Hardware sensing is deferred; the current system uses manual counts.

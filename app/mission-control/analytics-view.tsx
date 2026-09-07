@@ -154,7 +154,7 @@ export default function AnalyticsView({ analytics }: Props) {
 
   return <>
     <section className="page-heading inner-page-heading analytics-heading">
-      <div><p className="eyebrow">SFS intelligence</p><h1>Forecasts & analytics</h1><p>Operational probability, trends, and data quality—weighted toward what is happening this school year.</p></div>
+      <div><p className="eyebrow">Availability analytics</p><h1>Forecasts & analytics</h1><p>Operational probability, trends, and data quality—weighted toward what is happening this school year.</p></div>
       <div className="analytics-period" role="group" aria-label="Weekly chart period">
         <button className={period === 'current' ? 'active' : ''} onClick={() => setPeriod('current')}>{currentYear}</button>
         <button className={period === 'all' ? 'active' : ''} onClick={() => setPeriod('all')}>All history</button>
@@ -210,7 +210,7 @@ export default function AnalyticsView({ analytics }: Props) {
       <div className="panel-heading"><div><p className="eyebrow">Model card</p><h2>What the forecast knows—and what it does not</h2></div><Info /></div>
       <div className="quality-metrics"><div><strong>{analytics.dataQuality.validObservationalChecks}</strong><span>usable observations</span></div><div><strong>{analytics.dataQuality.excludedContradictoryChecks}</strong><span>contradictions excluded</span></div><div><strong>{analytics.dataQuality.excludedInvalidEmptySignals}</strong><span>unanswered outcomes</span></div><div><strong>{overview.cabinetsWithDirectObservations}/{overview.cabinetsIncluded}</strong><span>cabinets covered</span></div></div>
       <details><summary>Read the full methodology</summary><div className="methodology-copy"><p><strong>Outcome.</strong> {analytics.methodology.outcome}</p><p><strong>Weighting.</strong> {analytics.methodology.weighting}</p><p><strong>Small samples.</strong> {analytics.methodology.shrinkage}</p><p><strong>Uncertainty.</strong> {analytics.methodology.uncertainty}</p><p><strong>Quantitative gate.</strong> {analytics.methodology.inventoryReadinessRule}</p><ul>{analytics.dataQuality.notes.map((note) => <li key={note}>{note}</li>)}</ul></div></details>
-      <footer><span><ShieldCheck /> No cameras or student tracking</span><span>Updated {formatDate(analytics.generatedAt)}</span></footer>
+      <footer><span><ShieldCheck /> Evidence-weighted model</span><span>Updated {formatDate(analytics.generatedAt)}</span></footer>
     </section>
   </>;
 }
