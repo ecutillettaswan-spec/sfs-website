@@ -17,7 +17,7 @@ export default async function MissionControlPage({ searchParams }: { searchParam
     const returnTo = `/missioncontrol${returnParams.size ? `?${returnParams}` : ''}`;
     const failed = params?.login === 'failed';
     return (
-      <main className="access-denied">
+      <main className="access-denied mission-login">
         <div className="access-card shared-login-card">
           <div className="login-mark" aria-hidden="true">SFS</div>
           <p className="eyebrow">Private operations</p>

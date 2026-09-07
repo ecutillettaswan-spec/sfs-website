@@ -42,14 +42,14 @@ export type MissionData = {
 };
 
 const nav = [
-  { id: 'today', label: 'Today', Icon: LayoutDashboard },
-  { id: 'cabinets', label: 'Cabinets', Icon: Building2 },
-  { id: 'analytics', label: 'Forecasts & analytics', Icon: BarChart3 },
-  { id: 'routes', label: 'Routes & tasks', Icon: Route },
-  { id: 'inventory', label: 'Inventory & purchasing', Icon: Boxes },
-  { id: 'impact', label: 'Impact & reports', Icon: HandCoins },
-  { id: 'feedback', label: 'Feedback', Icon: Bell },
-  { id: 'admin', label: 'Admin', Icon: Settings2 },
+  { id: 'today', code: '00', label: 'Today', Icon: LayoutDashboard },
+  { id: 'cabinets', code: '01', label: 'Cabinets', Icon: Building2 },
+  { id: 'analytics', code: '02', label: 'Forecasts & analytics', Icon: BarChart3 },
+  { id: 'routes', code: '03', label: 'Routes & tasks', Icon: Route },
+  { id: 'inventory', code: '04', label: 'Inventory & purchasing', Icon: Boxes },
+  { id: 'impact', code: '05', label: 'Impact & reports', Icon: HandCoins },
+  { id: 'feedback', code: '06', label: 'Feedback', Icon: Bell },
+  { id: 'admin', code: 'SYS', label: 'Admin', Icon: Settings2 },
 ];
 
 function formatRole(role: string) {
@@ -73,7 +73,21 @@ function confidenceLabel(value: unknown) {
 }
 
 function StatusPill({ status }: { status: Row }) {
-  return <span className={`status-pill status-${status.severity ?? 'unknown'}`}><span />{status.label ?? 'Unknown'}</span>;
+  const consoleLabels: Record<string, string> = {
+    'fully-restocked': 'Full / confirmed',
+    'stale-empty': 'Empty / recheck',
+    'stale-attention': 'Issue / recheck',
+    stale: 'Recheck due',
+    facilities: 'Facilities',
+    attention: 'Attention',
+    stocked: 'Stock signal',
+    empty: 'Empty',
+    low: 'Low stock',
+    unknown: 'No signal',
+  };
+  const fullLabel = String(status.label ?? 'Unknown');
+  const label = consoleLabels[String(status.state ?? 'unknown')] ?? fullLabel;
+  return <span className={`status-pill status-${status.severity ?? 'unknown'}`} aria-label={fullLabel}><span />{label}</span>;
 }
 
 function Metric({ label, value, note }: { label: string; value: string | number; note: string }) {
@@ -131,10 +145,6 @@ export default function MissionControl({ initialData }: { initialData: MissionDa
     : canAdmin ? nav : nav.filter((item) => item.id !== 'admin');
   const outboundOn = data.featureModes.outbound_delivery === 'on';
   const today = useMemo(() => new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', weekday: 'long', month: 'long', day: 'numeric' }).format(new Date()), []);
-  const greeting = useMemo(() => {
-    const hour = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
-    return hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  }, []);
   const searchResults = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return [];
@@ -216,31 +226,31 @@ export default function MissionControl({ initialData }: { initialData: MissionDa
       <aside className={mobileNav ? 'mission-sidebar mobile-open' : 'mission-sidebar'}>
         <div className="brand-lockup">
           <Image src="/sfs-logo2.png" alt="Students Feeding Students" width={42} height={42} priority />
-          <div><strong>SFS</strong><span>Mission Control</span></div>
+          <div><strong>SFS / OPS</strong><span>PROVISIONING · MC-01</span></div>
           <button className="icon-button sidebar-close" onClick={() => setMobileNav(false)} aria-label="Close navigation"><X /></button>
         </div>
         <nav aria-label="Mission Control">
-          <p>Operate</p>
-          {visibleNav.filter((item) => item.id !== 'admin').map(({ id, label, Icon }) => (
+          <p>Operations</p>
+          {visibleNav.filter((item) => item.id !== 'admin').map(({ id, code, label, Icon }) => (
             <button key={id} className={view === id ? 'active' : ''} aria-current={view === id ? 'page' : undefined} onClick={() => { setView(id); setMobileNav(false); }}>
-              <Icon aria-hidden="true" /><span>{label}</span>
+              <span className="nav-code">{code}</span><Icon aria-hidden="true" /><span>{label}</span>
               {id === 'feedback' && data.metrics.feedbackNew > 0 && <b>{data.metrics.feedbackNew}</b>}
             </button>
           ))}
           <p>System</p>
-          {visibleNav.filter((item) => item.id === 'admin').map(({ id, label, Icon }) => (
+          {visibleNav.filter((item) => item.id === 'admin').map(({ id, code, label, Icon }) => (
             <button key={id} className={view === id ? 'active' : ''} aria-current={view === id ? 'page' : undefined} onClick={() => { setView(id); setMobileNav(false); }}>
-              <Icon aria-hidden="true" /><span>{label}</span>
+              <span className="nav-code">{code}</span><Icon aria-hidden="true" /><span>{label}</span>
             </button>
           ))}
         </nav>
         <div className="sidebar-mode">
           <span className={`mode-dot ${outboundOn ? 'mode-live' : ''}`} />
-          <div><strong>{outboundOn ? 'Delivery enabled' : 'Review mode'}</strong><small>{outboundOn ? 'External master gate is On' : 'External actions paused'}</small></div>
+          <div><strong>OUTBOUND / {outboundOn ? 'ENABLED' : 'LOCKED'}</strong><small>{outboundOn ? 'External delivery gate is on' : 'Review mode · external actions paused'}</small></div>
         </div>
         <div className="sidebar-user">
           <span>{data.user.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()}</span>
-          <div><strong>{data.user.name}</strong><small>{formatRole(data.user.role)}</small></div>
+          <div><strong>{data.user.name}</strong><small>SESSION / {formatRole(data.user.role)}</small></div>
         </div>
         <button className="sidebar-signout" onClick={signOut}><LogOut aria-hidden="true" /> Lock Mission Control</button>
       </aside>
@@ -250,13 +260,22 @@ export default function MissionControl({ initialData }: { initialData: MissionDa
       <div className="mission-main">
         <header className="mission-topbar">
           <button className="icon-button mobile-menu" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Menu /></button>
-          <div className="topbar-title"><Command aria-hidden="true" /><span>OPRF operations</span></div>
+          <div className="topbar-title"><Command aria-hidden="true" /><span>sfs://oprf/mission-control</span></div>
           <label className="global-search"><Search aria-hidden="true" /><span className="sr-only">Search Mission Control</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search cabinets, tasks, snacks…" /></label>
           <div className="topbar-actions">
-            <a className="public-link" href="/impact?preview=1">Preview impact</a>
+            <a className="public-link" href="/impact?preview=1">PUBLIC / IMPACT</a>
             {data.user.role !== 'board_viewer' && <button className="icon-button" aria-label="Open alerts and controls" onClick={() => setView(canAdmin ? 'admin' : 'today')}><Bell />{(data.metrics.urgent > 0 || data.metrics.feedbackNew > 0) && <span className="notification-dot" />}</button>}
           </div>
         </header>
+
+        <div className="system-rail" role="status" aria-label="Mission Control system status">
+          <span><i className="rail-dot rail-ready" />DATA <strong>D1 / READY</strong></span>
+          <span>NODES <strong>{data.metrics.activeCabinets}/{data.cabinets.length} ACTIVE</strong></span>
+          <span>CHECK LOG <strong>{Number(data.metrics.trackerChecks).toLocaleString()} ROWS</strong></span>
+          <span>CAPTURE <strong>MANUAL</strong></span>
+          <span>REFRESH <strong>AUTO / 5M</strong></span>
+          <span className={outboundOn ? 'rail-gate rail-gate-live' : 'rail-gate'}>GATE <strong>{outboundOn ? 'ON' : 'REVIEW'}</strong></span>
+        </div>
 
         {search.trim() && <div className="search-popover" role="region" aria-label="Search results">
           <div className="search-popover-head"><strong>Search results</strong><button onClick={() => setSearch('')} aria-label="Clear search"><X /></button></div>
@@ -265,7 +284,7 @@ export default function MissionControl({ initialData }: { initialData: MissionDa
 
         <main id="main-content" className="command-center" tabIndex={-1}>
           {view === 'today' && <section className="page-heading">
-            <div><p className="eyebrow">{today}</p><h1>{greeting}. Here’s the handoff.</h1><p>Live operations from manual counts and the existing cabinet check history.</p></div>
+            <div><p className="eyebrow">OPS / HANDOFF · {today}</p><h1>Daily operations console</h1><p>Cabinet state, field checks, routes, purchasing, and current forecast signals.</p></div>
             <div className="button-pair">
               <button className={canAdmin ? 'secondary-button' : 'primary-button'} onClick={() => setDialog({ type: 'count' })}><ClipboardCheck aria-hidden="true" /> Start a cabinet count</button>
               {canAdmin && <button className="primary-button" onClick={() => setDialog({ type: 'full-restock' })}><PackageCheck aria-hidden="true" /> Record after-school full restock</button>}
@@ -283,7 +302,7 @@ export default function MissionControl({ initialData }: { initialData: MissionDa
             </section>
 
             <div className="section-heading">
-              <div><p className="eyebrow">Live cabinet board</p><h2>Every cabinet, one glance.</h2></div>
+              <div><p className="eyebrow">CABINET NODES / 01–04</p><h2>Live cabinet matrix</h2></div>
               <button className="secondary-button" onClick={() => setView('cabinets')}>View all cabinets</button>
             </div>
             <section className="cabinet-grid">
@@ -292,7 +311,7 @@ export default function MissionControl({ initialData }: { initialData: MissionDa
 
             <section className="lower-grid">
               <article className="panel recommendations-panel">
-                <div className="panel-heading"><div><p className="eyebrow">Recommended next</p><h2>Action queue</h2></div><ClipboardCheck aria-hidden="true" /></div>
+                <div className="panel-heading"><div><p className="eyebrow">QUEUE / RECOMMENDED</p><h2>Action queue</h2></div><ClipboardCheck aria-hidden="true" /></div>
                 <div className="recommendation-list">
                   {data.recommendations.length ? data.recommendations.slice(0, 4).map((item, index) => (
                     <div className="recommendation" key={item.id}>
@@ -305,7 +324,7 @@ export default function MissionControl({ initialData }: { initialData: MissionDa
               </article>
 
               <article className="panel system-panel">
-                <div className="panel-heading"><div><p className="eyebrow">System controls</p><h2>Feature settings</h2></div><Settings2 aria-hidden="true" /></div>
+                <div className="panel-heading"><div><p className="eyebrow">RUNTIME / FLAGS</p><h2>Feature controls</h2></div><Settings2 aria-hidden="true" /></div>
                 <div className="system-list">
                   {data.features.slice(0, 5).map((feature) => (
                     <div key={feature.key}><span className={`feature-state state-${feature.mode}`} />

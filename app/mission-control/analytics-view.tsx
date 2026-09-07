@@ -156,8 +156,8 @@ export default function AnalyticsView({ analytics }: Props) {
     <section className="page-heading inner-page-heading analytics-heading">
       <div><p className="eyebrow">Availability analytics</p><h1>Forecasts & analytics</h1><p>Operational probability, trends, and data quality—weighted toward what is happening this school year.</p></div>
       <div className="analytics-period" role="group" aria-label="Weekly chart period">
-        <button className={period === 'current' ? 'active' : ''} onClick={() => setPeriod('current')}>{currentYear}</button>
-        <button className={period === 'all' ? 'active' : ''} onClick={() => setPeriod('all')}>All history</button>
+        <button className={period === 'current' ? 'active' : ''} aria-pressed={period === 'current'} onClick={() => setPeriod('current')}>{currentYear}</button>
+        <button className={period === 'all' ? 'active' : ''} aria-pressed={period === 'all'} onClick={() => setPeriod('all')}>All history</button>
       </div>
     </section>
 
