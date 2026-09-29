@@ -66,6 +66,7 @@ export default function FeedbackForm({ cabinet }: { cabinet: { id: string; name:
         <label className="honeypot" aria-hidden="true">Website<input name="website" tabIndex={-1} autoComplete="off" value={website} onChange={(event) => setWebsite(event.target.value)} /></label>
         {error && <p className="form-error" role="alert">{error}</p>}
         <button className="primary-button wide" disabled={!kind || status === 'saving'}>{status === 'saving' ? 'Sending…' : 'Send feedback'}</button>
+        <p className="feedback-privacy">Your name is optional. Please leave out private medical or financial details. <a href="/privacy.html">How we use feedback</a></p>
       </form>
     </main>
   );

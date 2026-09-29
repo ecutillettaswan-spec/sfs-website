@@ -8,6 +8,7 @@ const data = IBM_Plex_Mono({ variable: '--font-data-face', subsets: ['latin'], w
 const script = Caveat({ variable: '--font-script-face', subsets: ['latin'], weight: ['600', '700'] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://studentsfeedingstudents.org'),
   title: { default: 'Students Feeding Students', template: '%s · SFS' },
   description: 'Students Feeding Students Mission Control and public impact dashboard.',
   icons: { icon: '/sfs-logo2.png', apple: '/sfs-logo2.png' },

@@ -1,7 +1,18 @@
 import { getCabinetForFeedback } from '@/lib/database';
 import FeedbackForm from './feedback-form';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata({ params }: { params: Promise<{ cabinetId: string }> }): Promise<Metadata> {
+  const { cabinetId } = await params;
+  const cabinet = await getCabinetForFeedback(cabinetId);
+  return {
+    title: cabinet ? `Feedback for ${cabinet.name}` : 'Cabinet feedback',
+    description: cabinet ? `Tell the SFS team about ${cabinet.name} at OPRF High School.` : 'Send cabinet feedback to Students Feeding Students.',
+    robots: { index: false, follow: false },
+  };
+}
 
 export default async function FeedbackPage({ params }: { params: Promise<{ cabinetId: string }> }) {
   const { cabinetId } = await params;

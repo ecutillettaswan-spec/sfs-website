@@ -175,6 +175,16 @@ export const feedback = sqliteTable('feedback', {
   submittedAt: text('submitted_at').notNull(),
 }, (table) => [index('idx_feedback_status_date').on(table.status, table.submittedAt)]);
 
+export const inquiries = sqliteTable('inquiries', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull(),
+  topic: text('topic').notNull(),
+  message: text('message').notNull(),
+  status: text('status').notNull().default('new'),
+  submittedAt: text('submitted_at').notNull(),
+}, (table) => [index('idx_inquiries_status_date').on(table.status, table.submittedAt)]);
+
 export const featureFlags = sqliteTable('feature_flags', {
   key: text('key').primaryKey(),
   label: text('label').notNull(),
