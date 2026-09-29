@@ -2,8 +2,14 @@ import { getMissionUser } from '@/lib/auth';
 import { getMissionControlData } from '@/lib/database';
 import MissionControl from '../mission-control/mission-control';
 import Link from 'next/link';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
+export const metadata: Metadata = {
+  title: 'Mission Control',
+  description: 'Private Students Feeding Students program operations.',
+  robots: { index: false, follow: false },
+};
 
 export default async function MissionControlPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const user = await getMissionUser();

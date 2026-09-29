@@ -477,6 +477,8 @@ td small { color: var(--muted); font-size: .6rem; }
 .feedback-check { width: 58px; height: 58px; display: grid; place-items: center; margin: 0 auto 1rem; border-radius: 50%; background: var(--green-wash); color: var(--green); }
 .feedback-check svg { width: 28px; }
 .feedback-thanks p { color: var(--muted); line-height: 1.6; }
+.feedback-privacy { margin: .85rem 0 0; font-size: .88rem; line-height: 1.5; color: var(--muted); }
+.feedback-privacy a { color: var(--rust); text-decoration: underline; }
 .text-link { color: var(--rust); font-weight: 750; }
 
 /* ---------- public impact ---------- */

@@ -94,6 +94,11 @@ const schemaStatements = [
     id TEXT PRIMARY KEY, cabinet_id TEXT NOT NULL, kind TEXT NOT NULL,
     submitted_name TEXT, product_request TEXT, message TEXT, status TEXT NOT NULL DEFAULT 'new', submitted_at TEXT NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS inquiries (
+    id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL,
+    topic TEXT NOT NULL, message TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'new', submitted_at TEXT NOT NULL
+  )`,
   `CREATE TABLE IF NOT EXISTS feature_flags (
     key TEXT PRIMARY KEY, label TEXT NOT NULL, description TEXT NOT NULL,
     category TEXT NOT NULL, mode TEXT NOT NULL DEFAULT 'review',
@@ -121,6 +126,7 @@ const schemaStatements = [
   `CREATE INDEX IF NOT EXISTS idx_events_cabinet_product_date ON inventory_events(cabinet_id, product_id, occurred_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_tasks_status_due ON tasks(status, due_at)`,
   `CREATE INDEX IF NOT EXISTS idx_feedback_status_date ON feedback(status, submitted_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_inquiries_status_date ON inquiries(status, submitted_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_donations_date ON donations(received_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_purchases_donation ON purchases(donation_id)`,
 ];
@@ -486,7 +492,7 @@ export async function getMissionControlData(user: MissionUser) {
   await ensureDatabase();
   await autoImportTrackerIfNeeded(user.id);
   const db = getRawDb();
-  const [cabinetRows, productRows, inventoryRows, eventRows, checkRows, analyticsCheckRows, taskRows, donationRows, purchaseRows, feedbackRows, featureRows, reportRows, shiftRows, activityRows, settingsRows, totals] = await Promise.all([
+  const [cabinetRows, productRows, inventoryRows, eventRows, checkRows, analyticsCheckRows, taskRows, donationRows, purchaseRows, feedbackRows, inquiryRows, featureRows, reportRows, shiftRows, activityRows, settingsRows, totals] = await Promise.all([
     db.prepare('SELECT * FROM cabinets WHERE active=1 ORDER BY sort_order').all<Record<string, unknown>>(),
     db.prepare('SELECT * FROM products WHERE active=1 ORDER BY popularity_score DESC, name').all<Record<string, unknown>>(),
     db.prepare(`SELECT i.*, p.name AS product_name, p.category, p.units_per_case, p.cost_per_case,
@@ -500,6 +506,7 @@ export async function getMissionControlData(user: MissionUser) {
     db.prepare('SELECT * FROM donations ORDER BY received_at DESC LIMIT 100').all<Record<string, unknown>>(),
     db.prepare('SELECT * FROM purchases ORDER BY purchased_at DESC LIMIT 100').all<Record<string, unknown>>(),
     db.prepare("SELECT f.*, c.name AS cabinet_name FROM feedback f JOIN cabinets c ON c.id=f.cabinet_id ORDER BY submitted_at DESC LIMIT 100").all<Record<string, unknown>>(),
+    db.prepare("SELECT * FROM inquiries ORDER BY submitted_at DESC LIMIT 100").all<Record<string, unknown>>(),
     db.prepare('SELECT * FROM feature_flags ORDER BY category,label').all<Record<string, unknown>>(),
     db.prepare('SELECT * FROM reports ORDER BY created_at DESC LIMIT 50').all<Record<string, unknown>>(),
     db.prepare('SELECT * FROM volunteer_shifts ORDER BY shift_date,start_time LIMIT 100').all<Record<string, unknown>>(),
@@ -515,7 +522,8 @@ export async function getMissionControlData(user: MissionUser) {
       (SELECT COALESCE(SUM(CASE WHEN attribution_type='estimated' THEN attributed_snacks ELSE 0 END),0) FROM donations) AS estimated_donation_snacks,
       (SELECT COUNT(*) FROM tasks WHERE status='complete') AS completed_tasks,
       (SELECT COUNT(*) FROM tasks WHERE status!='complete') AS open_tasks,
-      (SELECT COUNT(*) FROM feedback WHERE status='new') AS feedback_new`).first<Record<string, unknown>>(),
+      (SELECT COUNT(*) FROM feedback WHERE status='new') AS feedback_new,
+      (SELECT COUNT(*) FROM inquiries WHERE status='new') AS inquiries_new`).first<Record<string, unknown>>(),
   ]);
   const cabinets = cabinetRows.results as DbRow[];
   const products = (productRows.results as DbRow[]).map((row) => ({
@@ -779,6 +787,7 @@ export async function getMissionControlData(user: MissionUser) {
     donations: isAdministrator ? donations : [],
     purchases: isAdministrator || isCoordinator ? purchaseRows.results : [],
     feedback: isAdministrator || isCoordinator ? feedbackRows.results : [],
+    inquiries: isAdministrator || isCoordinator ? inquiryRows.results : [],
     reports: (user.role === 'board_viewer'
       ? reportRows.results.filter((row) => ['sent', 'published'].includes(String(row.status)))
       : reportRows.results).map((row) => ({ ...row, metrics: safeJson(row.metrics_json, {}) })),
@@ -805,6 +814,7 @@ export async function getMissionControlData(user: MissionUser) {
       totalChecks: Number(totals?.total_checks ?? 0), trackerChecks: Number(totals?.tracker_checks ?? 0), emptyReports: Number(totals?.empty_reports ?? 0),
       activeCabinets: cabinets.length, emptyNow, urgent, openTasks, completedTasks,
       feedbackNew: Number(totals?.feedback_new ?? 0),
+      inquiriesNew: Number(totals?.inquiries_new ?? 0),
       latestCheckAt, trackerLastImport: settings.tracker_last_import ?? null,
       trackerSyncConfigured: Boolean(process.env.TRACKER_CSV_URL?.trim()),
     },
@@ -878,6 +888,25 @@ export async function submitAnonymousFeedback(input: { cabinetId: string; kind: 
       input.message?.trim().slice(0, 500) || null,
       new Date().toISOString(),
     ).run();
+  return { id };
+}
+
+export async function submitInquiry(input: { name: string; email: string; topic: string; message: string }) {
+  await ensureDatabase();
+  const db = getRawDb();
+  const name = input.name.trim().slice(0, 80);
+  const email = input.email.trim().toLowerCase().slice(0, 254);
+  const topic = input.topic.trim().slice(0, 80);
+  const message = input.message.trim().slice(0, 2000);
+  if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !topic || !message) {
+    throw new Error('Please complete all fields with a valid email address.');
+  }
+  const minuteAgo = new Date(Date.now() - 60_000).toISOString();
+  const recent = await db.prepare('SELECT COUNT(*) AS count FROM inquiries WHERE submitted_at>=?').bind(minuteAgo).first<{ count: number }>();
+  if (Number(recent?.count ?? 0) >= 20) throw new Error('The inbox is busy. Please try again shortly.');
+  const id = crypto.randomUUID();
+  await db.prepare(`INSERT INTO inquiries (id,name,email,topic,message,status,submitted_at)
+    VALUES (?,?,?,?,?,'new',?)`).bind(id, name, email, topic, message, new Date().toISOString()).run();
   return { id };
 }
 
@@ -1442,6 +1471,16 @@ export async function mutateMissionControl(user: MissionUser, action: string, pa
     await db.prepare('UPDATE feedback SET status=? WHERE id=?').bind(status, id).run();
     await logActivity(user.id, 'reviewed feedback', 'feedback', id, status);
     return { ok: true, message: 'Feedback updated.' };
+  }
+
+  if (action === 'review_inquiry') {
+    if (!canManage) throw new Error('Your role cannot manage inquiries.');
+    const id = String(payload.id ?? '');
+    const status = String(payload.status ?? 'reviewed');
+    if (!['new', 'reviewed', 'resolved'].includes(status)) throw new Error('Choose a valid inquiry status.');
+    await db.prepare('UPDATE inquiries SET status=? WHERE id=?').bind(status, id).run();
+    await logActivity(user.id, 'reviewed inquiry', 'inquiry', id, status);
+    return { ok: true, message: 'Inquiry updated.' };
   }
 
   if (action === 'import_tracker') {

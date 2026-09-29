@@ -26,6 +26,7 @@ export type MissionData = {
   donations: Row[];
   purchases: Row[];
   feedback: Row[];
+  inquiries: Row[];
   features: Row[];
   reports: Row[];
   users: Row[];
@@ -234,7 +235,7 @@ export default function MissionControl({ initialData }: { initialData: MissionDa
           {visibleNav.filter((item) => item.id !== 'admin').map(({ id, code, label, Icon }) => (
             <button key={id} className={view === id ? 'active' : ''} aria-current={view === id ? 'page' : undefined} onClick={() => { setView(id); setMobileNav(false); }}>
               <span className="nav-code">{code}</span><Icon aria-hidden="true" /><span>{label}</span>
-              {id === 'feedback' && data.metrics.feedbackNew > 0 && <b>{data.metrics.feedbackNew}</b>}
+              {id === 'feedback' && Number(data.metrics.feedbackNew ?? 0) + Number(data.metrics.inquiriesNew ?? 0) > 0 && <b>{Number(data.metrics.feedbackNew ?? 0) + Number(data.metrics.inquiriesNew ?? 0)}</b>}
             </button>
           ))}
           <p>System</p>
@@ -264,7 +265,7 @@ export default function MissionControl({ initialData }: { initialData: MissionDa
           <label className="global-search"><Search aria-hidden="true" /><span className="sr-only">Search Mission Control</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search cabinets, tasks, snacks…" /></label>
           <div className="topbar-actions">
             <a className="public-link" href="/impact?preview=1">PUBLIC / IMPACT</a>
-            {data.user.role !== 'board_viewer' && <button className="icon-button" aria-label="Open alerts and controls" onClick={() => setView(canAdmin ? 'admin' : 'today')}><Bell />{(data.metrics.urgent > 0 || data.metrics.feedbackNew > 0) && <span className="notification-dot" />}</button>}
+            {data.user.role !== 'board_viewer' && <button className="icon-button" aria-label="Open alerts and controls" onClick={() => setView(canAdmin ? 'admin' : 'today')}><Bell />{(data.metrics.urgent > 0 || data.metrics.feedbackNew > 0 || data.metrics.inquiriesNew > 0) && <span className="notification-dot" />}</button>}
           </div>
         </header>
 
