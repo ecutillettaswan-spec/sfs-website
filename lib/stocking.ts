@@ -3,6 +3,7 @@ import {
   chicagoToday,
   addDays,
   dayPhase,
+  formatChicagoDateTime,
   formatMonthDay,
   formatRange,
   isDateOnly,
@@ -13,6 +14,9 @@ import {
   weekdayOf,
   type StockingClosure,
   type StockingDay,
+  type StockingHistory,
+  type StockingHistoryDay,
+  type StockingHistoryPerson,
   type StockingLogEntry,
   type StockingPerson,
   type StockingState,
@@ -450,4 +454,75 @@ export async function mutateStocking(input: Record<string, unknown>, now = new D
   );
   await db.batch(statements);
   return getStockingState(now);
+}
+
+/** Aug 1 of the school year that contains `today`. */
+function schoolYearStart(today: string) {
+  const year = Number(today.slice(0, 4));
+  return Number(today.slice(5, 7)) >= 8 ? `${year}-08-01` : `${year - 1}-08-01`;
+}
+
+type HistoryRow = { shift_date: string; name_key: string; name: string; status: string; is_extra: number; updated_at: string };
+
+/**
+ * Who stocked (tapped "I can make it" on the day) and who said they couldn't,
+ * for every day so far this school year. Answers are never deleted, so this is
+ * the permanent record; only days up to today are included.
+ */
+export async function getStockingHistory(now = new Date()): Promise<StockingHistory> {
+  await ensureStocking();
+  const today = chicagoToday(now);
+  const since = schoolYearStart(today);
+  const result = await getRawDb().prepare(`SELECT shift_date,name_key,name,status,is_extra,updated_at FROM stocking_rsvps
+    WHERE shift_date BETWEEN ? AND ? AND status IN ('in','out') ORDER BY shift_date DESC, updated_at`).bind(since, today).all<HistoryRow>();
+  const rows = result.results ?? [];
+
+  const days = new Map<string, StockingHistoryDay>();
+  const people = new Map<string, StockingHistoryPerson>();
+  for (const row of rows) {
+    const day = days.get(row.shift_date) ?? { date: row.shift_date, stocked: [], out: [] };
+    days.set(row.shift_date, day);
+    // Rows come newest day first, so the first name seen is the most recent spelling.
+    const person = people.get(row.name_key) ?? { name: row.name, stocked: 0, out: 0, lastStocked: null };
+    people.set(row.name_key, person);
+    if (row.status === 'in') {
+      day.stocked.push(row.name);
+      person.stocked += 1;
+      person.lastStocked ??= row.shift_date;
+    } else {
+      day.out.push(row.name);
+      person.out += 1;
+    }
+  }
+  return {
+    today,
+    since,
+    days: [...days.values()],
+    people: [...people.values()].sort((a, b) => b.stocked - a.stocked || a.out - b.out || a.name.localeCompare(b.name)),
+  };
+}
+
+function csvField(value: string) {
+  return /[",\r\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value;
+}
+
+/** Every recorded answer up to today, oldest first, as CSV for Sheets or Excel. */
+export async function getStockingHistoryCsv(now = new Date()) {
+  await ensureStocking();
+  const today = chicagoToday(now);
+  const result = await getRawDb().prepare(`SELECT shift_date,name_key,name,status,is_extra,updated_at FROM stocking_rsvps
+    WHERE shift_date <= ? AND status IN ('in','out') ORDER BY shift_date, name_key`).bind(today).all<HistoryRow>();
+  const lines = [['date', 'day', 'name', 'answer', 'added just that day', 'answered at (Chicago)'].join(',')];
+  for (const row of result.results ?? []) {
+    lines.push([
+      row.shift_date,
+      WEEKDAY_NAMES[weekdayOf(row.shift_date)],
+      row.name,
+      row.status === 'in' ? 'stocked' : 'couldn’t make it',
+      row.is_extra ? 'yes' : 'no',
+      formatChicagoDateTime(row.updated_at),
+    ].map(csvField).join(','));
+  }
+  // The BOM makes Excel read names with accents correctly; Sheets ignores it.
+  return { today, csv: `\uFEFF${lines.join('\r\n')}\r\n` };
 }

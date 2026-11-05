@@ -29,6 +29,7 @@ No password, not linked from the site, and marked `noindex`. Anyone with the lin
 - People not on the lineup can add themselves for the current day only.
 - No-stocking days (breaks, holidays) are date ranges anyone can add or remove on the page. On those days, answers and adding yourself are turned off. Thanksgiving, winter break and spring break 2026–27 are preset once. The winter and spring dates come from District 90's calendar, which says it matches D200, so check them against OPRF's calendar.
 - Every change is written to a change log on the page. Open pages pick up changes every few seconds.
+- `/stocking/history` is the permanent record: who stocked (tapped "I can make it") and who couldn't, for every day this school year, with per-person totals. `/api/stocking/history.csv` downloads every answer. Answers are never deleted.
 - Code: `app/stocking/`, `app/api/stocking/route.ts`, `lib/stocking.ts` (database), `lib/stocking-shared.ts` (shared types and date helpers).
 
 ## Local development
