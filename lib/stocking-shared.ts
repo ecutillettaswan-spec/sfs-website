@@ -18,7 +18,16 @@ export type StockingDay = {
   date: string;
   weekday: number;
   phase: StockingPhase;
+  /** Set when the day falls inside a no-stocking range (break, holiday). */
+  closed: { id: string; reason: string } | null;
   people: StockingPerson[];
+};
+
+export type StockingClosure = {
+  id: string;
+  start: string;
+  end: string;
+  reason: string;
 };
 
 export type StockingLogEntry = {
@@ -32,6 +41,8 @@ export type StockingState = {
   version: string;
   today: string;
   days: StockingDay[];
+  /** No-stocking ranges that end on or after this week's Monday. */
+  closures: StockingClosure[];
   log: StockingLogEntry[];
 };
 
@@ -107,6 +118,12 @@ export function dayPhase(date: string, today: string): StockingPhase {
 export function formatMonthDay(date: string) {
   const { month, day } = dateParts(date);
   return `${MONTH_SHORT[month - 1]} ${day}`;
+}
+
+/** "Thu Nov 26" for one day, "Dec 21 – Jan 1" for a range. */
+export function formatRange(start: string, end: string) {
+  if (start === end) return `${WEEKDAY_SHORT[weekdayOf(start)]} ${formatMonthDay(start)}`;
+  return `${formatMonthDay(start)} – ${formatMonthDay(end)}`;
 }
 
 /**

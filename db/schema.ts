@@ -274,3 +274,11 @@ export const stockingMeta = sqliteTable('stocking_meta', {
   value: text('value').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
+
+export const stockingClosures = sqliteTable('stocking_closures', {
+  id: text('id').primaryKey(),
+  startDate: text('start_date').notNull(),
+  endDate: text('end_date').notNull(),
+  reason: text('reason').notNull().default(''),
+  createdAt: text('created_at').notNull(),
+}, (table) => [index('idx_stocking_closures_end').on(table.endDate)]);

@@ -166,3 +166,22 @@ select.stk-input { flex-basis: 200px; }
   .stk-btn { transition: none; }
   .stk-btn:active { transform: none; }
 }
+
+/* ---- no-stocking days ---- */
+.stk-tab.is-closed .stk-tab-day { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.stk-tab.is-closed[aria-selected="true"] .stk-tab-day { color: #d8cfc4; }
+.stk-phase.is-off { border-color: var(--ink); color: var(--ink); }
+.stk-closed { margin: 0; padding: 18px 16px; display: grid; gap: 4px; font-weight: 700; }
+.stk-closed span { font-weight: 400; font-size: .84rem; color: var(--muted); }
+.stk-panel-body ul.stk-closures { list-style: none; margin: 0 0 12px; padding: 0; gap: 0; }
+.stk-closures li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 8px; padding: 7px 0; border-top: 1px dashed var(--line); }
+.stk-closures li:first-child { border-top: 0; padding-top: 0; }
+.stk-closure-dates { font-family: var(--stk-mono); font-size: .74rem; font-weight: 600; }
+.stk-closure-reason { grid-column: 1; font-size: .82rem; color: var(--muted); }
+.stk-x { appearance: none; grid-column: 2; grid-row: 1 / span 2; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+.stk-x:hover { border-color: var(--stk-line-strong); color: var(--red); }
+.stk-x svg { width: 15px; height: 15px; }
+.stk-closure-form { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.stk-closure-form label { display: grid; gap: 4px; font-size: .78rem; font-weight: 700; }
+.stk-closure-form small { font-weight: 400; color: var(--muted); }
+.stk-closure-form .stk-input { width: 100%; max-width: none; font-weight: 400; }

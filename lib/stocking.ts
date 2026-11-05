@@ -1,14 +1,17 @@
 import { getRawDb } from '@/db';
 import {
   chicagoToday,
+  addDays,
   dayPhase,
   formatMonthDay,
+  formatRange,
   isDateOnly,
   nameKey,
   stockingWeek,
   WEEKDAY_NAMES,
   WEEKDAY_SHORT,
   weekdayOf,
+  type StockingClosure,
   type StockingDay,
   type StockingLogEntry,
   type StockingPerson,
@@ -23,6 +26,8 @@ const MAX_LINEUP_PER_DAY = 20;
 const MAX_EXTRAS_PER_DAY = 30;
 const MAX_CHANGES_PER_MINUTE = 60;
 const LOG_RETENTION_DAYS = 120;
+const MAX_UPCOMING_CLOSURES = 60;
+const MAX_CLOSURE_DAYS = 120;
 
 const schema = [
   `CREATE TABLE IF NOT EXISTS stocking_roster (
@@ -44,6 +49,11 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS stocking_meta (
     key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS stocking_closures (
+    id TEXT PRIMARY KEY, start_date TEXT NOT NULL, end_date TEXT NOT NULL,
+    reason TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL
+  )`,
+  'CREATE INDEX IF NOT EXISTS idx_stocking_closures_end ON stocking_closures(end_date)',
 ];
 
 // The weekly lineup from the "Stocking Schedule" sheet. Only used to fill an
@@ -56,24 +66,47 @@ const sheetLineup = [
   { weekday: 5, lead: 'Rei', phone: '7087960842', crew: ['Laney', 'Rabi', 'Lucy', 'Erik', 'Nolan'] },
 ] as const;
 
+// 2026–27 breaks, added once so they show up without anyone typing them in.
+// Thanksgiving is the holiday itself; the winter and spring break dates come from
+// District 90's calendar, which says it lines up with D200. Edit on the page if OPRF differs.
+const presetClosures = [
+  { id: 'preset-2026-thanksgiving', start: '2026-11-26', end: '2026-11-27', reason: 'Thanksgiving break' },
+  { id: 'preset-2026-winter', start: '2026-12-21', end: '2027-01-01', reason: 'Winter break' },
+  { id: 'preset-2027-spring', start: '2027-03-29', end: '2027-04-02', reason: 'Spring break' },
+] as const;
+
 let ready: Promise<void> | null = null;
 
 export function ensureStocking() {
   ready ??= (async () => {
     const db = getRawDb();
     await db.batch(schema.map((sql) => db.prepare(sql)));
-    const seeded = await db.prepare("SELECT value FROM stocking_meta WHERE key='seed'").first<{ value: string }>();
-    if (seeded) return;
+    // Each seed runs once, so deleting a seeded person or break never brings it back.
+    const done = await db.prepare("SELECT key FROM stocking_meta WHERE key IN ('seed','closures-seed')").all<{ key: string }>();
+    const seeded = new Set((done.results ?? []).map((row) => row.key));
+    if (seeded.has('seed') && seeded.has('closures-seed')) return;
     const now = new Date().toISOString();
-    await db.batch([
-      ...sheetLineup.flatMap((day) => [day.lead, ...day.crew].map((name, index) => db.prepare(`INSERT OR IGNORE INTO stocking_roster
-        (id,weekday,name,name_key,is_lead,phone,sort_order,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)`).bind(
-        `seed-${day.weekday}-${nameKey(name)}`, day.weekday, name, nameKey(name),
-        index === 0 ? 1 : 0, index === 0 ? day.phone : null, index, now, now,
-      ))),
-      db.prepare("INSERT OR IGNORE INTO stocking_meta (key,value,updated_at) VALUES ('seed','stocking-sheet-v1',?)").bind(now),
-      db.prepare("INSERT OR IGNORE INTO stocking_meta (key,value,updated_at) VALUES ('version',?,?)").bind(crypto.randomUUID(), now),
-    ]);
+    const statements: D1PreparedStatement[] = [];
+    if (!seeded.has('seed')) {
+      statements.push(
+        ...sheetLineup.flatMap((day) => [day.lead, ...day.crew].map((name, index) => db.prepare(`INSERT OR IGNORE INTO stocking_roster
+          (id,weekday,name,name_key,is_lead,phone,sort_order,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)`).bind(
+          `seed-${day.weekday}-${nameKey(name)}`, day.weekday, name, nameKey(name),
+          index === 0 ? 1 : 0, index === 0 ? day.phone : null, index, now, now,
+        ))),
+        db.prepare("INSERT OR IGNORE INTO stocking_meta (key,value,updated_at) VALUES ('seed','stocking-sheet-v1',?)").bind(now),
+      );
+    }
+    if (!seeded.has('closures-seed')) {
+      statements.push(
+        ...presetClosures.map((closure) => db.prepare(`INSERT OR IGNORE INTO stocking_closures
+          (id,start_date,end_date,reason,created_at) VALUES (?,?,?,?,?)`).bind(closure.id, closure.start, closure.end, closure.reason, now)),
+        db.prepare("INSERT OR IGNORE INTO stocking_meta (key,value,updated_at) VALUES ('closures-seed','2026-27-v1',?)").bind(now),
+      );
+    }
+    statements.push(db.prepare(`INSERT INTO stocking_meta (key,value,updated_at) VALUES ('version',?,?)
+      ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at`).bind(crypto.randomUUID(), now));
+    await db.batch(statements);
   })().catch((error) => {
     ready = null;
     throw error;
@@ -84,6 +117,7 @@ export function ensureStocking() {
 type RosterRow = { id: string; weekday: number; name: string; name_key: string; is_lead: number; phone: string | null };
 type RsvpRow = { shift_date: string; name_key: string; name: string; status: string | null; is_extra: number; updated_at: string };
 type LogRow = { id: string; actor_name: string | null; details: string; created_at: string };
+type ClosureRow = { id: string; start_date: string; end_date: string; reason: string };
 
 function asStatus(value: string | null): StockingStatus | null {
   return value === 'in' || value === 'out' ? value : null;
@@ -101,12 +135,17 @@ export async function getStockingState(now = new Date()): Promise<StockingState>
   const today = chicagoToday(now);
   const dates = stockingWeek(today);
   // One batch = one consistent snapshot of the lineup, answers, log and version.
-  const [rosterResult, rsvpResult, logResult, versionResult] = await db.batch<Record<string, unknown>>([
+  const [rosterResult, rsvpResult, logResult, versionResult, closureResult] = await db.batch<Record<string, unknown>>([
     db.prepare('SELECT id,weekday,name,name_key,is_lead,phone FROM stocking_roster ORDER BY weekday, is_lead DESC, sort_order, created_at'),
     db.prepare('SELECT shift_date,name_key,name,status,is_extra,updated_at FROM stocking_rsvps WHERE shift_date BETWEEN ? AND ? ORDER BY created_at').bind(dates[0], dates[4]),
     db.prepare('SELECT id,actor_name,details,created_at FROM stocking_log ORDER BY created_at DESC LIMIT 25'),
     db.prepare("SELECT value FROM stocking_meta WHERE key='version'"),
+    db.prepare('SELECT id,start_date,end_date,reason FROM stocking_closures WHERE end_date >= ? ORDER BY start_date, end_date LIMIT ?')
+      .bind(dates[0], MAX_UPCOMING_CLOSURES + 10),
   ]);
+  const closures: StockingClosure[] = ((closureResult.results ?? []) as ClosureRow[]).map((row) => ({
+    id: row.id, start: row.start_date, end: row.end_date, reason: row.reason,
+  }));
   const roster = (rosterResult.results ?? []) as RosterRow[];
   const rsvps = (rsvpResult.results ?? []) as RsvpRow[];
   const answers = new Map(rsvps.map((row) => [`${row.shift_date}|${row.name_key}`, row]));
@@ -139,7 +178,14 @@ export async function getStockingState(now = new Date()): Promise<StockingState>
         statusAt: row.status ? row.updated_at : null,
       });
     }
-    return { date, weekday, phase: dayPhase(date, today), people };
+    const closure = closures.find((item) => item.start <= date && item.end >= date);
+    return {
+      date,
+      weekday,
+      phase: dayPhase(date, today),
+      closed: closure ? { id: closure.id, reason: closure.reason } : null,
+      people,
+    };
   });
 
   const log: StockingLogEntry[] = ((logResult.results ?? []) as LogRow[]).map((row) => ({
@@ -149,7 +195,7 @@ export async function getStockingState(now = new Date()): Promise<StockingState>
     text: row.details,
   }));
   const version = String((versionResult.results?.[0] as { value?: string } | undefined)?.value ?? '0');
-  return { version, today, days, log };
+  return { version, today, days, closures, log };
 }
 
 function cleanName(raw: unknown) {
@@ -192,6 +238,13 @@ function cleanRosterId(raw: unknown) {
   return id;
 }
 
+function cleanReason(raw: unknown) {
+  const reason = String(raw ?? '').normalize('NFC').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim();
+  if (reason.length > 60) throw new StockingError('Keep the reason under 60 characters.');
+  if (reason && !/^[\p{L}\p{M}\p{N} .,'’&()/:!?-]+$/u.test(reason)) throw new StockingError('Use letters and numbers for the reason.');
+  return reason;
+}
+
 function dayLabel(date: string) {
   return `${WEEKDAY_SHORT[weekdayOf(date)]} ${formatMonthDay(date)}`;
 }
@@ -227,6 +280,11 @@ export async function mutateStocking(input: Record<string, unknown>, now = new D
     .bind(day, key).first<{ id: string; name: string }>();
   const extraEntry = (date: string, key: string) => db.prepare('SELECT name FROM stocking_rsvps WHERE shift_date=? AND name_key=? AND is_extra=1')
     .bind(date, key).first<{ name: string }>();
+  const assertOpen = async (date: string) => {
+    const closure = await db.prepare('SELECT reason FROM stocking_closures WHERE start_date <= ? AND end_date >= ? LIMIT 1')
+      .bind(date, date).first<{ reason: string }>();
+    if (closure) throw new StockingError(`No stocking on ${WEEKDAY_NAMES[weekdayOf(date)]}${closure.reason ? ` (${closure.reason})` : ''}.`);
+  };
 
   switch (action) {
     case 'respond': {
@@ -236,6 +294,7 @@ export async function mutateStocking(input: Record<string, unknown>, now = new D
       const status = input.status === 'in' || input.status === 'out' ? input.status : null;
       if (input.status != null && status === null) throw new StockingError('Pick “I can make it” or “I can’t make it”.');
       if (phase === 'past') throw new StockingError(`${WEEKDAY_NAMES[weekday]} is already over, so it can’t be changed.`);
+      await assertOpen(shiftDate);
       if (status === 'in' && phase === 'future') {
         throw new StockingError(`Too early to check in. Come back on ${WEEKDAY_NAMES[weekday]} to say you can make it.`);
       }
@@ -258,6 +317,7 @@ export async function mutateStocking(input: Record<string, unknown>, now = new D
       const phase = dayPhase(shiftDate, today);
       if (phase === 'past') throw new StockingError(`${WEEKDAY_NAMES[weekday]} is already over.`);
       if (phase === 'future') throw new StockingError(`You can add yourself on ${WEEKDAY_NAMES[weekday]}, the day you’re going.`);
+      await assertOpen(shiftDate);
       const name = cleanName(input.name);
       const key = nameKey(name);
       const regular = await lineupEntry(weekday, key);
@@ -341,6 +401,38 @@ export async function mutateStocking(input: Record<string, unknown>, now = new D
       weekday = row.weekday;
       statements.push(db.prepare('UPDATE stocking_roster SET phone=?, updated_at=? WHERE id=?').bind(phone, stamp, id));
       details = phone ? `${row.name}’s phone number was updated` : `${row.name}’s phone number was removed`;
+      break;
+    }
+
+    case 'closure-add': {
+      if (!isDateOnly(input.start)) throw new StockingError('Pick the first day with no stocking.');
+      const start = input.start;
+      const end = input.end ? input.end : start;
+      if (!isDateOnly(end)) throw new StockingError('Pick a valid last day.');
+      if (end < start) throw new StockingError('The last day has to be on or after the first day.');
+      if (end < today) throw new StockingError('Those days have already passed.');
+      if (end > addDays(start, MAX_CLOSURE_DAYS)) throw new StockingError(`Keep it under ${MAX_CLOSURE_DAYS} days at a time.`);
+      if (end <= addDays(start, 1) && [0, 6].includes(weekdayOf(start)) && [0, 6].includes(weekdayOf(end))) {
+        throw new StockingError('That’s only a weekend. There’s no stocking on weekends anyway.');
+      }
+      const reason = cleanReason(input.reason);
+      const upcoming = await db.prepare('SELECT COUNT(*) AS count FROM stocking_closures WHERE end_date >= ?').bind(today).first<{ count: number }>();
+      if (Number(upcoming?.count ?? 0) >= MAX_UPCOMING_CLOSURES) throw new StockingError('That’s a lot of no-stocking days. Remove some old ones first.');
+      statements.push(db.prepare('INSERT INTO stocking_closures (id,start_date,end_date,reason,created_at) VALUES (?,?,?,?,?)')
+        .bind(crypto.randomUUID(), start, end, reason, stamp));
+      shiftDate = start;
+      details = `No stocking ${formatRange(start, end)}${reason ? ` (${reason})` : ''}`;
+      break;
+    }
+
+    case 'closure-remove': {
+      const id = cleanRosterId(input.id);
+      const row = await db.prepare('SELECT start_date,end_date,reason FROM stocking_closures WHERE id=?').bind(id)
+        .first<{ start_date: string; end_date: string; reason: string }>();
+      if (!row) throw new StockingError('That was already removed. Refresh the page.');
+      statements.push(db.prepare('DELETE FROM stocking_closures WHERE id=?').bind(id));
+      shiftDate = row.start_date;
+      details = `Stocking back on ${formatRange(row.start_date, row.end_date)}${row.reason ? ` (was ${row.reason})` : ''}`;
       break;
     }
 

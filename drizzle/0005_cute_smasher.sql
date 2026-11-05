@@ -1,3 +1,12 @@
+CREATE TABLE `stocking_closures` (
+	`id` text PRIMARY KEY NOT NULL,
+	`start_date` text NOT NULL,
+	`end_date` text NOT NULL,
+	`reason` text DEFAULT '' NOT NULL,
+	`created_at` text NOT NULL
+);
+--> statement-breakpoint
+CREATE INDEX `idx_stocking_closures_end` ON `stocking_closures` (`end_date`);--> statement-breakpoint
 CREATE TABLE `stocking_log` (
 	`id` text PRIMARY KEY NOT NULL,
 	`shift_date` text,

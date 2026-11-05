@@ -27,6 +27,7 @@ No password, not linked from the site, and marked `noindex`. Anyone with the lin
 - The weekly lineup (lead, lead phone, crew) was first loaded from the "Stocking Schedule" sheet and is edited on the page after that.
 - "I can make it" is the check-in and only works on the day itself. "I can't make it" works any time before.
 - People not on the lineup can add themselves for the current day only.
+- No-stocking days (breaks, holidays) are date ranges anyone can add or remove on the page. On those days, answers and adding yourself are turned off. Thanksgiving, winter break and spring break 2026–27 are preset once. The winter and spring dates come from District 90's calendar, which says it matches D200, so check them against OPRF's calendar.
 - Every change is written to a change log on the page. Open pages pick up changes every few seconds.
 - Code: `app/stocking/`, `app/api/stocking/route.ts`, `lib/stocking.ts` (database), `lib/stocking-shared.ts` (shared types and date helpers).
 

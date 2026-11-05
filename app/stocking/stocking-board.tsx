@@ -6,10 +6,12 @@ import { Check, Pencil, Phone, Plus, X } from 'lucide-react';
 import {
   formatMonthDay,
   formatPhone,
+  formatRange,
   formatStamp,
   nameKey,
   WEEKDAY_NAMES,
   WEEKDAY_SHORT,
+  type StockingClosure,
   type StockingDay,
   type StockingPerson,
   type StockingState,
@@ -191,12 +193,14 @@ export default function StockingBoard({ initialState }: { initialState: Stocking
   const lead = day.people.find((person) => person.role === 'lead');
   const mine = meKey ? day.people.filter((person) => person.key === meKey) : [];
   const people = meKey ? [...mine, ...day.people.filter((person) => person.key !== meKey)] : day.people;
-  const myDays = meKey ? state.days.filter((item) => item.people.some((person) => person.key === meKey)) : [];
+  const myDays = meKey ? state.days.filter((item) => !item.closed && item.people.some((person) => person.key === meKey)) : [];
   const tally = count(day);
   const first = state.days[0];
   const last = state.days[state.days.length - 1];
   const nextWeek = state.days.every((item) => item.phase === 'future');
-  const canAddExtra = day.phase === 'today';
+  const closed = day.closed;
+  const canAddExtra = day.phase === 'today' && !closed;
+  const upcomingClosures = state.closures.filter((item) => item.end >= state.today);
   const meOnDay = meKey ? day.people.some((person) => person.key === meKey) : false;
   const days = state.days;
 
@@ -254,6 +258,25 @@ export default function StockingBoard({ initialState }: { initialState: Stocking
     event.preventDefault();
     const phone = String(new FormData(event.currentTarget).get('phone') ?? '');
     if (await send({ action: 'roster-phone', id: person.rosterId, phone })) showNotice(phone.trim() ? 'Phone number saved.' : 'Phone number removed.');
+  }
+
+  async function addClosure(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const start = String(data.get('start') ?? '');
+    if (!start) { showNotice('Pick the first day with no stocking.'); return; }
+    const end = String(data.get('end') ?? '') || start;
+    if (await send({ action: 'closure-add', start, end, reason: String(data.get('reason') ?? '') })) {
+      form.reset();
+      showNotice(`Saved. No stocking ${formatRange(start, end)}.`);
+    }
+  }
+
+  function removeClosure(closure: StockingClosure) {
+    if (window.confirm(`Turn stocking back on for ${formatRange(closure.start, closure.end)}?`)) {
+      void send({ action: 'closure-remove', id: closure.id });
+    }
   }
 
   function pickMe(event: FormEvent<HTMLFormElement>) {
@@ -321,7 +344,7 @@ export default function StockingBoard({ initialState }: { initialState: Stocking
           <div className="stk-tabs" role="tablist" aria-label="Days this week" onKeyDown={onTabKey}>
             {state.days.map((item) => {
               const selected = item.date === day.date;
-              const mineToday = meKey ? item.people.some((person) => person.key === meKey) : false;
+              const mineToday = meKey && !item.closed ? item.people.some((person) => person.key === meKey) : false;
               return (
                 <button
                   key={item.date}
@@ -331,11 +354,11 @@ export default function StockingBoard({ initialState }: { initialState: Stocking
                   aria-selected={selected}
                   aria-controls="stk-day-panel"
                   tabIndex={selected ? 0 : -1}
-                  className={`stk-tab is-${item.phase}`}
+                  className={`stk-tab is-${item.phase}${item.closed ? ' is-closed' : ''}`}
                   onClick={() => setSelectedDate(item.date)}
                 >
                   <span className="stk-tab-day">{WEEKDAY_SHORT[item.weekday]}</span>
-                  <span className="stk-tab-date">{item.phase === 'today' ? 'today' : formatMonthDay(item.date)}</span>
+                  <span className="stk-tab-date">{item.phase === 'today' ? 'today' : item.closed ? 'off' : formatMonthDay(item.date)}</span>
                   {mineToday && <span className="stk-tab-dot" title="You’re on this day" />}
                 </button>
               );
@@ -348,14 +371,17 @@ export default function StockingBoard({ initialState }: { initialState: Stocking
                 {weekdayName} <small>{formatMonthDay(day.date)}</small>
                 {day.phase === 'today' && <span className="stk-phase is-today">today</span>}
                 {day.phase === 'past' && <span className="stk-phase">done</span>}
+                {closed && <span className="stk-phase is-off">no stocking</span>}
               </h2>
-              <p className="stk-tally">
-                {day.phase === 'future' ? (
-                  <><b>{day.people.length}</b> on the list · <b>{tally.out}</b> can’t make it</>
-                ) : (
-                  <><b>{tally.coming}</b> {day.phase === 'past' ? 'came' : 'coming'} · <b>{tally.out}</b> can’t · <b>{tally.unanswered}</b> no answer</>
-                )}
-              </p>
+              {!closed && (
+                <p className="stk-tally">
+                  {day.phase === 'future' ? (
+                    <><b>{day.people.length}</b> on the list · <b>{tally.out}</b> can’t make it</>
+                  ) : (
+                    <><b>{tally.coming}</b> {day.phase === 'past' ? 'came' : 'coming'} · <b>{tally.out}</b> can’t · <b>{tally.unanswered}</b> no answer</>
+                  )}
+                </p>
+              )}
             </div>
 
             {editing && (
@@ -364,20 +390,26 @@ export default function StockingBoard({ initialState }: { initialState: Stocking
                 <button type="button" className="stk-btn" onClick={() => setEditing(false)}><Check aria-hidden="true" /> Done</button>
               </div>
             )}
-            {!editing && day.phase === 'future' && (
+            {!editing && closed && (
+              <p className="stk-closed">
+                No stocking {day.phase === 'today' ? 'today' : `on ${weekdayName}`}{closed.reason ? `: ${closed.reason}` : ''}.
+                <span>You can change this under No-stocking days.</span>
+              </p>
+            )}
+            {!editing && !closed && day.phase === 'future' && (
               <p className="stk-note">Check-in opens {weekdayName}. You can already say you can’t make it.</p>
             )}
-            {!editing && day.phase === 'past' && (
+            {!editing && !closed && day.phase === 'past' && (
               <p className="stk-note">{weekdayName} is over. This is what people said.</p>
             )}
-            {!lead && day.people.length > 0 && (
+            {!closed && !lead && day.people.length > 0 && (
               <p className="stk-note is-warn">No lead for {weekdayName}s. Use Edit lineup to pick one.</p>
             )}
-            {lead?.status === 'out' && day.phase !== 'past' && (
+            {!closed && lead?.status === 'out' && day.phase !== 'past' && (
               <p className="stk-note is-warn">{lead.name} (lead) can’t make it. Someone needs to cover as lead.</p>
             )}
 
-            {people.length === 0 ? (
+            {closed && !editing ? null : people.length === 0 ? (
               <p className="stk-empty">Nobody is on {weekdayName} yet.{editing ? '' : ' Use Edit lineup to add people.'}</p>
             ) : (
               <ul className="stk-people" key={day.date}>
@@ -422,7 +454,7 @@ export default function StockingBoard({ initialState }: { initialState: Stocking
                   <button type="submit" className="stk-btn solid"><Plus aria-hidden="true" /> Add me for today</button>
                 </div>
               </form>
-            ) : day.phase === 'future' ? (
+            ) : day.phase === 'future' && !closed ? (
               <p className="stk-foot">Going on {weekdayName} but not on the list? Add yourself that day.</p>
             ) : null}
 
@@ -446,6 +478,7 @@ export default function StockingBoard({ initialState }: { initialState: Stocking
               </ul>
             </div>
           </details>
+          <NoStockingDays closures={upcomingClosures} today={state.today} onAdd={addClosure} onRemove={removeClosure} />
           <details className="stk-panel">
             <summary>Stocking lead responsibilities</summary>
             <div className="stk-panel-body">
@@ -485,6 +518,42 @@ export default function StockingBoard({ initialState }: { initialState: Stocking
         </div>
       )}
     </main>
+  );
+}
+
+type NoStockingDaysProps = {
+  closures: StockingClosure[];
+  today: string;
+  onAdd: (event: FormEvent<HTMLFormElement>) => void;
+  onRemove: (closure: StockingClosure) => void;
+};
+
+function NoStockingDays({ closures, today, onAdd, onRemove }: NoStockingDaysProps) {
+  return (
+    <details className="stk-panel" open>
+      <summary>No-stocking days</summary>
+      <div className="stk-panel-body">
+        {closures.length === 0 ? <p className="stk-muted">None coming up.</p> : (
+          <ul className="stk-closures">
+            {closures.map((closure) => (
+              <li key={closure.id}>
+                <span className="stk-closure-dates">{formatRange(closure.start, closure.end)}</span>
+                <span className="stk-closure-reason">{closure.reason || 'No stocking'}</span>
+                <button type="button" className="stk-x" aria-label={`Remove ${formatRange(closure.start, closure.end)}`} title="Remove" onClick={() => onRemove(closure)}>
+                  <X aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form className="stk-closure-form" onSubmit={onAdd}>
+          <label><span>First day</span><input className="stk-input" type="date" name="start" min={today} required /></label>
+          <label><span>Last day <small>(blank = one day)</small></span><input className="stk-input" type="date" name="end" min={today} /></label>
+          <label><span>Reason <small>(optional)</small></span><input className="stk-input" name="reason" placeholder="Institute day" maxLength={60} autoComplete="off" /></label>
+          <button type="submit" className="stk-btn solid"><Plus aria-hidden="true" /> Add no-stocking days</button>
+        </form>
+      </div>
+    </details>
   );
 }
 
