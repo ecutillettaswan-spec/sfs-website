@@ -45,7 +45,7 @@ await rm(workerSource, { recursive: true, force: true });
 
 await writeFile(path.join(output, '_routes.json'), `${JSON.stringify({
   version: 1,
-  include: ['/_next/image', '/missioncontrol', '/missioncontrol/*', '/api/*', '/feedback/*', '/impact', '/impact/*'],
+  include: ['/_next/image', '/missioncontrol', '/missioncontrol/*', '/api/*', '/feedback/*', '/impact', '/impact/*', '/stocking', '/stocking/*', '/stocking-responsibilities'],
   exclude: ['/_next/static/*'],
 }, null, 2)}\n`);
 

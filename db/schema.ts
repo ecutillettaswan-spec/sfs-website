@@ -1,4 +1,4 @@
-import { index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
@@ -234,3 +234,51 @@ export const sensors = sqliteTable('sensors', {
   calibrationJson: text('calibration_json'),
   createdAt: text('created_at').notNull(),
 });
+
+// /stocking — weekly volunteer lineup, per-day answers, and an edit log.
+// Tables are also created at runtime by ensureStocking() in lib/stocking.ts.
+export const stockingRoster = sqliteTable('stocking_roster', {
+  id: text('id').primaryKey(),
+  weekday: integer('weekday').notNull(),
+  name: text('name').notNull(),
+  nameKey: text('name_key').notNull(),
+  isLead: integer('is_lead', { mode: 'boolean' }).notNull().default(false),
+  phone: text('phone'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+}, (table) => [uniqueIndex('idx_stocking_roster_day_name').on(table.weekday, table.nameKey)]);
+
+export const stockingRsvps = sqliteTable('stocking_rsvps', {
+  shiftDate: text('shift_date').notNull(),
+  nameKey: text('name_key').notNull(),
+  name: text('name').notNull(),
+  status: text('status'),
+  isExtra: integer('is_extra', { mode: 'boolean' }).notNull().default(false),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+}, (table) => [primaryKey({ columns: [table.shiftDate, table.nameKey] })]);
+
+export const stockingLog = sqliteTable('stocking_log', {
+  id: text('id').primaryKey(),
+  shiftDate: text('shift_date'),
+  weekday: integer('weekday'),
+  action: text('action').notNull(),
+  actorName: text('actor_name'),
+  details: text('details').notNull(),
+  createdAt: text('created_at').notNull(),
+}, (table) => [index('idx_stocking_log_created').on(table.createdAt)]);
+
+export const stockingMeta = sqliteTable('stocking_meta', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+export const stockingClosures = sqliteTable('stocking_closures', {
+  id: text('id').primaryKey(),
+  startDate: text('start_date').notNull(),
+  endDate: text('end_date').notNull(),
+  reason: text('reason').notNull().default(''),
+  createdAt: text('created_at').notNull(),
+}, (table) => [index('idx_stocking_closures_end').on(table.endDate)]);
