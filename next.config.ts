@@ -26,6 +26,7 @@ const nextConfig: NextConfig = {
       { source: '/api/:path*', headers: [{ key: 'Cache-Control', value: 'no-store' }] },
       { source: '/tracker', headers: [{ key: 'Cache-Control', value: 'no-cache' }, { key: 'X-Robots-Tag', value: 'noindex, nofollow' }] },
       { source: '/impact', headers: [{ key: 'Cache-Control', value: 'no-store' }] },
+      { source: '/stocking', headers: [{ key: 'Cache-Control', value: 'no-store' }, { key: 'X-Robots-Tag', value: 'noindex, nofollow' }] },
     ];
   },
 };
