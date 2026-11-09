@@ -17,6 +17,7 @@ import {
   type StockingState,
   type StockingStatus,
 } from '@/lib/stocking-shared';
+import TopBar, { PlainLink } from './top-bar';
 
 const POLL_MS = 4_000;
 const NOTICE_MS = 6_000;
@@ -176,7 +177,7 @@ export default function StockingBoard({ initialState }: { initialState: Stocking
   if (!state) {
     return (
       <main className="stk">
-        <TopBar online={online} />
+        <StatusBar online={online} />
         <div className="stk-wrap stk-wrap-single">
           <div className="stk-day stk-empty">
             <p><strong>Couldn’t load the schedule.</strong></p>
@@ -295,7 +296,7 @@ export default function StockingBoard({ initialState }: { initialState: Stocking
 
   return (
     <main className="stk">
-      <TopBar online={online} />
+      <StatusBar online={online} />
       <div className="stk-wrap">
         <div className="stk-main">
           <header className="stk-title">
@@ -557,23 +558,14 @@ function NoStockingDays({ closures, today, onAdd, onRemove }: NoStockingDaysProp
   );
 }
 
-function TopBar({ online }: { online: boolean }) {
+function StatusBar({ online }: { online: boolean }) {
   return (
-    <div className="stk-bar">
-      <div className="stk-bar-inner">
-        {/* Plain link on purpose: on Cloudflare Pages "/" is the static index.html, not an app route. */}
-        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-        <a className="stk-brand" href="/">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/sfs-logo2.png" alt="" width={26} height={26} />
-          <span>SFS</span>
-        </a>
-        <span className="stk-path">/stocking</span>
-        <span className={`stk-live${online ? '' : ' is-offline'}`} role="status">
-          <i aria-hidden="true" />{online ? 'live' : 'offline · retrying'}
-        </span>
-      </div>
-    </div>
+    <TopBar path="/stocking">
+      <PlainLink className="stk-barlink" href="/stocking/history">history</PlainLink>
+      <span className={`stk-live${online ? '' : ' is-offline'}`} role="status">
+        <i aria-hidden="true" />{online ? 'live' : 'offline · retrying'}
+      </span>
+    </TopBar>
   );
 }
 

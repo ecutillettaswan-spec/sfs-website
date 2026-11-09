@@ -46,6 +46,27 @@ export type StockingState = {
   log: StockingLogEntry[];
 };
 
+export type StockingHistoryDay = {
+  date: string;
+  stocked: string[];
+  out: string[];
+};
+
+export type StockingHistoryPerson = {
+  name: string;
+  stocked: number;
+  out: number;
+  lastStocked: string | null;
+};
+
+export type StockingHistory = {
+  today: string;
+  /** First day of the school year shown (Aug 1). */
+  since: string;
+  days: StockingHistoryDay[];
+  people: StockingHistoryPerson[];
+};
+
 export const STOCKING_TIME_ZONE = 'America/Chicago';
 export const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
 export const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
@@ -137,6 +158,14 @@ export function formatStamp(iso: string, today: string, withDate = false) {
   const clock = `${hour % 12 || 12}:${pad(minute)} ${hour < 12 ? 'AM' : 'PM'}`;
   if (date === today) return clock;
   return withDate ? `${formatMonthDay(date)}, ${clock}` : `${WEEKDAY_SHORT[weekdayOf(date)]} ${clock}`;
+}
+
+/** "2026-11-04 15:05" in Chicago time, for exports. */
+export function formatChicagoDateTime(iso: string) {
+  const instant = new Date(iso);
+  if (Number.isNaN(instant.getTime())) return '';
+  const { date, hour, minute } = chicagoParts(instant);
+  return `${date} ${pad(hour)}:${pad(minute)}`;
 }
 
 export function formatPhone(digits: string) {
